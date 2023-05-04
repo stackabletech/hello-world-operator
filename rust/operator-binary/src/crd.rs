@@ -65,10 +65,10 @@ pub enum Error {
 #[kube(
     group = "hello.stackable.tech",
     version = "v1alpha1",
-    kind = "HelloworldCluster",
-    plural = "helloworldclusters",
+    kind = "HelloCluster",
+    plural = "helloclusters",
     shortname = "hello",
-    status = "HelloworldClusterStatus",
+    status = "HelloClusterStatus",
     namespaced,
     crates(
         kube_core = "stackable_operator::kube::core",
@@ -285,7 +285,7 @@ impl Default for ServiceType {
 }
 
 impl Configuration for MetaStoreConfigFragment {
-    type Configurable = HelloworldCluster;
+    type Configurable = HelloCluster;
 
     fn compute_env(
         &self,
@@ -349,14 +349,14 @@ impl Configuration for MetaStoreConfigFragment {
 
 #[derive(Clone, Default, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct HelloworldClusterStatus {
+pub struct HelloClusterStatus {
     /// An opaque value that changes every time a discovery detail does
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub discovery_hash: Option<String>,
     pub conditions: Vec<ClusterCondition>,
 }
 
-impl HasStatusCondition for HelloworldCluster {
+impl HasStatusCondition for HelloCluster {
     fn conditions(&self) -> Vec<ClusterCondition> {
         match &self.status {
             Some(status) => status.conditions.clone(),
@@ -369,7 +369,7 @@ impl HasStatusCondition for HelloworldCluster {
 #[snafu(display("object has no namespace associated"))]
 pub struct NoNamespaceError;
 
-impl HelloworldCluster {
+impl HelloCluster {
     /// The name of the role-level load-balanced Kubernetes `Service`
     pub fn metastore_role_service_name(&self) -> Option<&str> {
         self.metadata.name.as_deref()
@@ -379,7 +379,7 @@ impl HelloworldCluster {
     pub fn metastore_rolegroup_ref(
         &self,
         group_name: impl Into<String>,
-    ) -> RoleGroupRef<HelloworldCluster> {
+    ) -> RoleGroupRef<HelloCluster> {
         RoleGroupRef {
             cluster: ObjectRef::from_obj(self),
             role: HelloRole::Server.to_string(),

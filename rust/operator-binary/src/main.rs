@@ -4,10 +4,10 @@ mod crd;
 mod discovery;
 mod product_logging;
 
-use crate::controller::HIVE_CONTROLLER_NAME;
+use crate::controller::HELLO_CONTROLLER_NAME;
 
 use clap::{crate_description, crate_version, Parser};
-use crd::{HelloworldCluster, APP_NAME};
+use crd::{HelloCluster, APP_NAME};
 use futures::stream::StreamExt;
 use stackable_operator::{
     cli::{Command, ProductOperatorRun},
@@ -26,7 +26,7 @@ mod built_info {
     pub const TARGET_PLATFORM: Option<&str> = option_env!("TARGET");
 }
 
-const OPERATOR_NAME: &str = "hive.stackable.tech";
+const OPERATOR_NAME: &str = "hello.stackable.tech";
 
 #[derive(Parser)]
 #[clap(about, author)]
@@ -39,14 +39,14 @@ struct Opts {
 async fn main() -> anyhow::Result<()> {
     let opts = Opts::parse();
     match opts.cmd {
-        Command::Crd => HelloworldCluster::print_yaml_schema()?,
+        Command::Crd => HelloCluster::print_yaml_schema()?,
         Command::Run(ProductOperatorRun {
             product_config,
             watch_namespace,
             tracing_target,
         }) => {
             stackable_operator::logging::initialize_logging(
-                "HIVE_OPERATOR_LOG",
+                "HELLO_OPERATOR_LOG",
                 APP_NAME,
                 tracing_target,
             );
@@ -61,14 +61,14 @@ async fn main() -> anyhow::Result<()> {
 
             let product_config = product_config.load(&[
                 "deploy/config-spec/properties.yaml",
-                "/etc/stackable/hive-operator/config-spec/properties.yaml",
+                "/etc/stackable/hello-operator/config-spec/properties.yaml",
             ])?;
 
             let client =
                 stackable_operator::client::create_client(Some(OPERATOR_NAME.to_string())).await?;
 
             Controller::new(
-                watch_namespace.get_api::<HelloworldCluster>(&client),
+                watch_namespace.get_api::<HelloCluster>(&client),
                 watcher::Config::default(),
             )
             .owns(
@@ -85,7 +85,7 @@ async fn main() -> anyhow::Result<()> {
             )
             .shutdown_on_signal()
             .run(
-                controller::reconcile_hive,
+                controller::reconcile_hello,
                 controller::error_policy,
                 Arc::new(controller::Ctx {
                     client: client.clone(),
@@ -95,7 +95,7 @@ async fn main() -> anyhow::Result<()> {
             .map(|res| {
                 report_controller_reconciled(
                     &client,
-                    &format!("{HIVE_CONTROLLER_NAME}.{OPERATOR_NAME}"),
+                    &format!("{HELLO_CONTROLLER_NAME}.{OPERATOR_NAME}"),
                     &res,
                 );
             })

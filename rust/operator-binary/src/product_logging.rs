@@ -1,6 +1,6 @@
 use crate::controller::MAX_HIVE_LOG_FILES_SIZE_IN_MIB;
 
-use crate::crd::{Container, HelloworldCluster, HIVE_LOG4J2_PROPERTIES, STACKABLE_LOG_DIR};
+use crate::crd::{Container, HelloCluster, HIVE_LOG4J2_PROPERTIES, STACKABLE_LOG_DIR};
 use snafu::{OptionExt, ResultExt, Snafu};
 use stackable_operator::{
     builder::ConfigMapBuilder,
@@ -43,7 +43,7 @@ const HIVE_LOG_FILE: &str = "hive.log4j2.xml";
 /// Return the address of the Vector aggregator if the corresponding ConfigMap name is given in the
 /// cluster spec
 pub async fn resolve_vector_aggregator_address(
-    hbase: &HelloworldCluster,
+    hbase: &HelloCluster,
     client: &Client,
 ) -> Result<Option<String>> {
     let vector_aggregator_address = if let Some(vector_aggregator_config_map_name) =
@@ -77,7 +77,7 @@ pub async fn resolve_vector_aggregator_address(
 
 /// Extend the role group ConfigMap with logging and Vector configurations
 pub fn extend_role_group_config_map(
-    rolegroup: &RoleGroupRef<HelloworldCluster>,
+    rolegroup: &RoleGroupRef<HelloCluster>,
     vector_aggregator_address: Option<&str>,
     logging: &Logging<Container>,
     cm_builder: &mut ConfigMapBuilder,

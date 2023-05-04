@@ -25,7 +25,7 @@ mod tests {
 
     use std::collections::BTreeMap;
 
-    use crate::crd::HelloworldCluster;
+    use crate::crd::HelloCluster;
     use stackable_operator::{
         commons::affinity::{StackableAffinity, StackableNodeSelector},
         k8s_openapi::{
@@ -59,7 +59,7 @@ mod tests {
               default:
                 replicas: 1
         "#;
-        let hive: HelloworldCluster = serde_yaml::from_str(input).expect("illegal test input");
+        let hive: HelloCluster = serde_yaml::from_str(input).expect("illegal test input");
         let merged_config = hive.merged_config(&HelloRole::Server, "default").unwrap();
 
         assert_eq!(
@@ -130,7 +130,7 @@ mod tests {
                         - antarctica-east1
                         - antarctica-west1
         "#;
-        let hive: HelloworldCluster = serde_yaml::from_str(input).expect("illegal test input");
+        let hive: HelloCluster = serde_yaml::from_str(input).expect("illegal test input");
         let merged_config = hive.merged_config(&HelloRole::Server, "default").unwrap();
 
         assert_eq!(

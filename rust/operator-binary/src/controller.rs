@@ -1,9 +1,9 @@
-//! Ensures that `Pod`s are configured and running for each [`HiveCluster`]
+//! Ensures that `Pod`s are configured and running for each [`HelloCluster`]
 use crate::product_logging::{extend_role_group_config_map, resolve_vector_aggregator_address};
 use crate::{discovery, OPERATOR_NAME};
 
 use crate::crd::{
-    Container, HelloRole, HelloworldCluster, HelloworldClusterStatus, MetaStoreConfig, APP_NAME,
+    Container, HelloCluster, HelloClusterStatus, HelloRole, MetaStoreConfig, APP_NAME,
     HADOOP_HEAPSIZE, HIVE_ENV_SH, HIVE_PORT, HIVE_PORT_NAME, HIVE_SITE_XML, JVM_HEAP_FACTOR,
     METRICS_PORT, METRICS_PORT_NAME, STACKABLE_CONFIG_DIR, STACKABLE_CONFIG_DIR_NAME,
     STACKABLE_CONFIG_MOUNT_DIR, STACKABLE_CONFIG_MOUNT_DIR_NAME, STACKABLE_LOG_CONFIG_MOUNT_DIR,
@@ -61,9 +61,9 @@ use strum::EnumDiscriminants;
 use tracing::warn;
 
 /// Used as runAsUser in the pod security context. This is specified in the kafka image file
-pub const HIVE_UID: i64 = 1000;
-pub const HIVE_CONTROLLER_NAME: &str = "hivecluster";
-const DOCKER_IMAGE_BASE_NAME: &str = "hive";
+pub const HELLO_UID: i64 = 1000;
+pub const HELLO_CONTROLLER_NAME: &str = "hellocluster";
+const DOCKER_IMAGE_BASE_NAME: &str = "hello";
 
 pub const MAX_HIVE_LOG_FILES_SIZE_IN_MIB: u32 = 10;
 
@@ -88,7 +88,7 @@ pub enum Error {
     GlobalServiceNameNotFound,
     #[snafu(display("failed to calculate service name for role {rolegroup}"))]
     RoleGroupServiceNameNotFound {
-        rolegroup: RoleGroupRef<HelloworldCluster>,
+        rolegroup: RoleGroupRef<HelloCluster>,
     },
     #[snafu(display("failed to apply global Service"))]
     ApplyRoleService {
@@ -97,22 +97,22 @@ pub enum Error {
     #[snafu(display("failed to apply Service for {rolegroup}"))]
     ApplyRoleGroupService {
         source: stackable_operator::error::Error,
-        rolegroup: RoleGroupRef<HelloworldCluster>,
+        rolegroup: RoleGroupRef<HelloCluster>,
     },
     #[snafu(display("failed to build ConfigMap for {rolegroup}"))]
     BuildRoleGroupConfig {
         source: stackable_operator::error::Error,
-        rolegroup: RoleGroupRef<HelloworldCluster>,
+        rolegroup: RoleGroupRef<HelloCluster>,
     },
     #[snafu(display("failed to apply ConfigMap for {rolegroup}"))]
     ApplyRoleGroupConfig {
         source: stackable_operator::error::Error,
-        rolegroup: RoleGroupRef<HelloworldCluster>,
+        rolegroup: RoleGroupRef<HelloCluster>,
     },
     #[snafu(display("failed to apply StatefulSet for {rolegroup}"))]
     ApplyRoleGroupStatefulSet {
         source: stackable_operator::error::Error,
-        rolegroup: RoleGroupRef<HelloworldCluster>,
+        rolegroup: RoleGroupRef<HelloCluster>,
     },
     #[snafu(display("failed to generate product config"))]
     GenerateProductConfig {
@@ -201,7 +201,7 @@ impl ReconcilerError for Error {
     }
 }
 
-pub async fn reconcile_hive(hive: Arc<HelloworldCluster>, ctx: Arc<Ctx>) -> Result<Action> {
+pub async fn reconcile_hello(hive: Arc<HelloCluster>, ctx: Arc<Ctx>) -> Result<Action> {
     tracing::info!("Starting reconcile");
     let client = &ctx.client;
     let resolved_product_image: ResolvedProductImage =
@@ -240,7 +240,7 @@ pub async fn reconcile_hive(hive: Arc<HelloworldCluster>, ctx: Arc<Ctx>) -> Resu
     let mut cluster_resources = ClusterResources::new(
         APP_NAME,
         OPERATOR_NAME,
-        HIVE_CONTROLLER_NAME,
+        HELLO_CONTROLLER_NAME,
         &hive.object_ref(&()),
         ClusterResourceApplyStrategy::from(&hive.spec.cluster_operation),
     )
@@ -351,7 +351,7 @@ pub async fn reconcile_hive(hive: Arc<HelloworldCluster>, ctx: Arc<Ctx>) -> Resu
     let cluster_operation_cond_builder =
         ClusterOperationsConditionBuilder::new(&hive.spec.cluster_operation);
 
-    let status = HelloworldClusterStatus {
+    let status = HelloClusterStatus {
         // Serialize as a string to discourage users from trying to parse the value,
         // and to keep things flexible if we end up changing the hasher at some point.
         discovery_hash: Some(discovery_hash.finish().to_string()),
@@ -377,7 +377,7 @@ pub async fn reconcile_hive(hive: Arc<HelloworldCluster>, ctx: Arc<Ctx>) -> Resu
 /// The server-role service is the primary endpoint that should be used by clients that do not
 /// perform internal load balancing including targets outside of the cluster.
 pub fn build_metastore_role_service(
-    hive: &HelloworldCluster,
+    hive: &HelloCluster,
     resolved_product_image: &ResolvedProductImage,
 ) -> Result<Service> {
     let role_name = HelloRole::Server.to_string();
@@ -410,9 +410,9 @@ pub fn build_metastore_role_service(
 
 /// The rolegroup [`ConfigMap`] configures the rolegroup based on the configuration given by the administrator
 fn build_metastore_rolegroup_config_map(
-    hive: &HelloworldCluster,
+    hive: &HelloCluster,
     resolved_product_image: &ResolvedProductImage,
-    rolegroup: &RoleGroupRef<HelloworldCluster>,
+    rolegroup: &RoleGroupRef<HelloCluster>,
     role_group_config: &HashMap<PropertyNameKind, BTreeMap<String, String>>,
     merged_config: &MetaStoreConfig,
     vector_aggregator_address: Option<&str>,
@@ -517,9 +517,9 @@ fn build_metastore_rolegroup_config_map(
 ///
 /// This is mostly useful for internal communication between peers, or for clients that perform client-side load balancing.
 fn build_rolegroup_service(
-    hive: &HelloworldCluster,
+    hive: &HelloCluster,
     resolved_product_image: &ResolvedProductImage,
-    rolegroup: &RoleGroupRef<HelloworldCluster>,
+    rolegroup: &RoleGroupRef<HelloCluster>,
 ) -> Result<Service> {
     Ok(Service {
         metadata: ObjectMetaBuilder::new()
@@ -558,9 +558,9 @@ fn build_rolegroup_service(
 /// The [`Pod`](`stackable_operator::k8s_openapi::api::core::v1::Pod`)s are accessible through the
 /// corresponding [`Service`] (from [`build_rolegroup_service`]).
 fn build_metastore_rolegroup_statefulset(
-    hive: &HelloworldCluster,
+    hive: &HelloCluster,
     resolved_product_image: &ResolvedProductImage,
-    rolegroup_ref: &RoleGroupRef<HelloworldCluster>,
+    rolegroup_ref: &RoleGroupRef<HelloCluster>,
     metastore_config: &HashMap<PropertyNameKind, BTreeMap<String, String>>,
     merged_config: &MetaStoreConfig,
     sa_name: &str,
@@ -673,7 +673,7 @@ fn build_metastore_rolegroup_statefulset(
         .service_account_name(sa_name)
         .security_context(
             PodSecurityContextBuilder::new()
-                .run_as_user(HIVE_UID)
+                .run_as_user(HELLO_UID)
                 .run_as_group(0)
                 .fs_group(1000)
                 .build(),
@@ -752,7 +752,7 @@ fn build_metastore_rolegroup_statefulset(
     })
 }
 
-pub fn error_policy(_obj: Arc<HelloworldCluster>, _error: &Error, _ctx: Arc<Ctx>) -> Action {
+pub fn error_policy(_obj: Arc<HelloCluster>, _error: &Error, _ctx: Arc<Ctx>) -> Action {
     Action::requeue(Duration::from_secs(5))
 }
 
@@ -785,7 +785,7 @@ pub fn build_recommended_labels<'a, T>(
         app_name: APP_NAME,
         app_version,
         operator_name: OPERATOR_NAME,
-        controller_name: HIVE_CONTROLLER_NAME,
+        controller_name: HELLO_CONTROLLER_NAME,
         role,
         role_group,
     }
