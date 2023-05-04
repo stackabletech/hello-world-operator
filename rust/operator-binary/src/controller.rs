@@ -1,6 +1,6 @@
 //! Ensures that `Pod`s are configured and running for each [`HelloCluster`]
 use crate::product_logging::{extend_role_group_config_map, resolve_vector_aggregator_address};
-use crate::{discovery, OPERATOR_NAME};
+use crate::OPERATOR_NAME;
 
 use crate::crd::{
     Container, HelloCluster, HelloClusterStatus, HelloRole, ServerConfig, APP_NAME, HELLO_COLOR,
@@ -9,7 +9,6 @@ use crate::crd::{
     STACKABLE_CONFIG_MOUNT_DIR_NAME, STACKABLE_LOG_CONFIG_MOUNT_DIR,
     STACKABLE_LOG_CONFIG_MOUNT_DIR_NAME, STACKABLE_LOG_DIR, STACKABLE_LOG_DIR_NAME,
 };
-use fnv::FnvHasher;
 use snafu::{OptionExt, ResultExt, Snafu};
 use stackable_operator::{
     builder::{
@@ -51,7 +50,6 @@ use stackable_operator::{
 use std::{
     borrow::Cow,
     collections::{BTreeMap, HashMap},
-    hash::Hasher,
     sync::Arc,
     time::Duration,
 };
@@ -124,8 +122,6 @@ pub enum Error {
     ObjectMissingMetadataForOwnerRef {
         source: stackable_operator::error::Error,
     },
-    #[snafu(display("failed to build discovery ConfigMap"))]
-    BuildDiscoveryConfig { source: discovery::Error },
     #[snafu(display("failed to apply discovery ConfigMap"))]
     ApplyDiscoveryConfig {
         source: stackable_operator::error::Error,
@@ -199,16 +195,16 @@ impl ReconcilerError for Error {
     }
 }
 
-pub async fn reconcile_hello(hive: Arc<HelloCluster>, ctx: Arc<Ctx>) -> Result<Action> {
+pub async fn reconcile_hello(hello: Arc<HelloCluster>, ctx: Arc<Ctx>) -> Result<Action> {
     tracing::info!("Starting reconcile");
     let client = &ctx.client;
     let resolved_product_image: ResolvedProductImage =
-        hive.spec.image.resolve(DOCKER_IMAGE_BASE_NAME);
+        hello.spec.image.resolve(DOCKER_IMAGE_BASE_NAME);
 
     let validated_config = validate_all_roles_and_groups_config(
         &resolved_product_image.product_version,
         &transform_all_roles_to_config(
-            hive.as_ref(),
+            hello.as_ref(),
             [(
                 HelloRole::Server.to_string(),
                 (
@@ -217,7 +213,7 @@ pub async fn reconcile_hello(hive: Arc<HelloCluster>, ctx: Arc<Ctx>) -> Result<A
                         PropertyNameKind::Cli,
                         PropertyNameKind::File(INDEX_HTML.to_string()),
                     ],
-                    hive.spec.server.clone().context(NoMetaStoreRoleSnafu)?,
+                    hello.spec.server.clone().context(NoMetaStoreRoleSnafu)?,
                 ),
             )]
             .into(),
@@ -238,13 +234,13 @@ pub async fn reconcile_hello(hive: Arc<HelloCluster>, ctx: Arc<Ctx>) -> Result<A
         APP_NAME,
         OPERATOR_NAME,
         HELLO_CONTROLLER_NAME,
-        &hive.object_ref(&()),
-        ClusterResourceApplyStrategy::from(&hive.spec.cluster_operation),
+        &hello.object_ref(&()),
+        ClusterResourceApplyStrategy::from(&hello.spec.cluster_operation),
     )
     .context(CreateClusterResourcesSnafu)?;
 
     let (rbac_sa, rbac_rolebinding) = build_rbac_resources(
-        hive.as_ref(),
+        hello.as_ref(),
         APP_NAME,
         cluster_resources.get_required_labels(),
     )
@@ -259,30 +255,30 @@ pub async fn reconcile_hello(hive: Arc<HelloCluster>, ctx: Arc<Ctx>) -> Result<A
         .await
         .context(ApplyRoleBindingSnafu)?;
 
-    let metastore_role_service = build_metastore_role_service(&hive, &resolved_product_image)?;
+    let metastore_role_service = build_metastore_role_service(&hello, &resolved_product_image)?;
 
     // we have to get the assigned ports
-    let metastore_role_service = cluster_resources
+    cluster_resources
         .add(client, metastore_role_service)
         .await
         .context(ApplyRoleServiceSnafu)?;
 
-    let vector_aggregator_address = resolve_vector_aggregator_address(&hive, client)
+    let vector_aggregator_address = resolve_vector_aggregator_address(&hello, client)
         .await
         .context(ResolveVectorAggregatorAddressSnafu)?;
 
     let mut ss_cond_builder = StatefulSetConditionBuilder::default();
 
     for (rolegroup_name, rolegroup_config) in metastore_config.iter() {
-        let rolegroup = hive.server_rolegroup_ref(rolegroup_name);
+        let rolegroup = hello.server_rolegroup_ref(rolegroup_name);
 
-        let config = hive
+        let config = hello
             .merged_config(&HelloRole::Server, &rolegroup.role_group)
             .context(FailedToResolveResourceConfigSnafu)?;
 
-        let rg_service = build_rolegroup_service(&hive, &resolved_product_image, &rolegroup)?;
+        let rg_service = build_rolegroup_service(&hello, &resolved_product_image, &rolegroup)?;
         let rg_configmap = build_server_rolegroup_config_map(
-            &hive,
+            &hello,
             &resolved_product_image,
             &rolegroup,
             rolegroup_config,
@@ -290,7 +286,7 @@ pub async fn reconcile_hello(hive: Arc<HelloCluster>, ctx: Arc<Ctx>) -> Result<A
             vector_aggregator_address.as_deref(),
         )?;
         let rg_statefulset = build_metastore_rolegroup_statefulset(
-            &hive,
+            &hello,
             &resolved_product_image,
             &rolegroup,
             rolegroup_config,
@@ -322,44 +318,18 @@ pub async fn reconcile_hello(hive: Arc<HelloCluster>, ctx: Arc<Ctx>) -> Result<A
         );
     }
 
-    // std's SipHasher is deprecated, and DefaultHasher is unstable across Rust releases.
-    // We don't /need/ stability, but it's still nice to avoid spurious changes where possible.
-    let mut discovery_hash = FnvHasher::with_key(0);
-    for discovery_cm in discovery::build_discovery_configmaps(
-        client,
-        &*hive,
-        &hive,
-        &resolved_product_image,
-        &metastore_role_service,
-        None,
-    )
-    .await
-    .context(BuildDiscoveryConfigSnafu)?
-    {
-        let discovery_cm = cluster_resources
-            .add(client, discovery_cm)
-            .await
-            .context(ApplyDiscoveryConfigSnafu)?;
-        if let Some(generation) = discovery_cm.metadata.resource_version {
-            discovery_hash.write(generation.as_bytes())
-        }
-    }
-
     let cluster_operation_cond_builder =
-        ClusterOperationsConditionBuilder::new(&hive.spec.cluster_operation);
+        ClusterOperationsConditionBuilder::new(&hello.spec.cluster_operation);
 
     let status = HelloClusterStatus {
-        // Serialize as a string to discourage users from trying to parse the value,
-        // and to keep things flexible if we end up changing the hasher at some point.
-        discovery_hash: Some(discovery_hash.finish().to_string()),
         conditions: compute_conditions(
-            hive.as_ref(),
+            hello.as_ref(),
             &[&ss_cond_builder, &cluster_operation_cond_builder],
         ),
     };
 
     client
-        .apply_patch_status(OPERATOR_NAME, &*hive, &status)
+        .apply_patch_status(OPERATOR_NAME, &*hello, &status)
         .await
         .context(ApplyStatusSnafu)?;
 
