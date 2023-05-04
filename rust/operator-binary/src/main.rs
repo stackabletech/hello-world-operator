@@ -1,15 +1,14 @@
-mod command;
+mod affinity;
 mod controller;
+mod crd;
 mod discovery;
 mod product_logging;
-mod affinity;
-mod crd;
 
 use crate::controller::HIVE_CONTROLLER_NAME;
 
 use clap::{crate_description, crate_version, Parser};
 use futures::stream::StreamExt;
-use crd::{HiveCluster, APP_NAME};
+use crd::{HelloworldCluster, APP_NAME};
 use stackable_operator::{
     cli::{Command, ProductOperatorRun},
     k8s_openapi::api::{
@@ -40,7 +39,7 @@ struct Opts {
 async fn main() -> anyhow::Result<()> {
     let opts = Opts::parse();
     match opts.cmd {
-        Command::Crd => HiveCluster::print_yaml_schema()?,
+        Command::Crd => HelloworldCluster::print_yaml_schema()?,
         Command::Run(ProductOperatorRun {
             product_config,
             watch_namespace,
@@ -69,7 +68,7 @@ async fn main() -> anyhow::Result<()> {
                 stackable_operator::client::create_client(Some(OPERATOR_NAME.to_string())).await?;
 
             Controller::new(
-                watch_namespace.get_api::<HiveCluster>(&client),
+                watch_namespace.get_api::<HelloworldCluster>(&client),
                 watcher::Config::default(),
             )
             .owns(

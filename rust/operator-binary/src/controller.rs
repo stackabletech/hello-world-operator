@@ -1,12 +1,11 @@
 //! Ensures that `Pod`s are configured and running for each [`HiveCluster`]
-use crate::command::{self, build_container_command_args, S3_SECRET_DIR};
 use crate::product_logging::{extend_role_group_config_map, resolve_vector_aggregator_address};
 use crate::{discovery, OPERATOR_NAME};
 
 use fnv::FnvHasher;
 use snafu::{OptionExt, ResultExt, Snafu};
 use crate::crd::{
-    Container, DbType, HiveCluster, HiveClusterStatus, HiveRole, MetaStoreConfig, APP_NAME,
+    Container, HelloworldCluster, HelloworldClusterStatus, HiveRole, MetaStoreConfig, APP_NAME,
     CERTS_DIR, HADOOP_HEAPSIZE, HIVE_ENV_SH, HIVE_PORT, HIVE_PORT_NAME, HIVE_SITE_XML,
     JVM_HEAP_FACTOR, METRICS_PORT, METRICS_PORT_NAME, STACKABLE_CONFIG_DIR,
     STACKABLE_CONFIG_DIR_NAME, STACKABLE_CONFIG_MOUNT_DIR, STACKABLE_CONFIG_MOUNT_DIR_NAME,
@@ -96,7 +95,7 @@ pub enum Error {
     GlobalServiceNameNotFound,
     #[snafu(display("failed to calculate service name for role {rolegroup}"))]
     RoleGroupServiceNameNotFound {
-        rolegroup: RoleGroupRef<HiveCluster>,
+        rolegroup: RoleGroupRef<HelloworldCluster>,
     },
     #[snafu(display("failed to apply global Service"))]
     ApplyRoleService {
@@ -105,22 +104,22 @@ pub enum Error {
     #[snafu(display("failed to apply Service for {rolegroup}"))]
     ApplyRoleGroupService {
         source: stackable_operator::error::Error,
-        rolegroup: RoleGroupRef<HiveCluster>,
+        rolegroup: RoleGroupRef<HelloworldCluster>,
     },
     #[snafu(display("failed to build ConfigMap for {rolegroup}"))]
     BuildRoleGroupConfig {
         source: stackable_operator::error::Error,
-        rolegroup: RoleGroupRef<HiveCluster>,
+        rolegroup: RoleGroupRef<HelloworldCluster>,
     },
     #[snafu(display("failed to apply ConfigMap for {rolegroup}"))]
     ApplyRoleGroupConfig {
         source: stackable_operator::error::Error,
-        rolegroup: RoleGroupRef<HiveCluster>,
+        rolegroup: RoleGroupRef<HelloworldCluster>,
     },
     #[snafu(display("failed to apply StatefulSet for {rolegroup}"))]
     ApplyRoleGroupStatefulSet {
         source: stackable_operator::error::Error,
-        rolegroup: RoleGroupRef<HiveCluster>,
+        rolegroup: RoleGroupRef<HelloworldCluster>,
     },
     #[snafu(display("failed to generate product config"))]
     GenerateProductConfig {
@@ -209,25 +208,11 @@ impl ReconcilerError for Error {
     }
 }
 
-pub async fn reconcile_hive(hive: Arc<HiveCluster>, ctx: Arc<Ctx>) -> Result<Action> {
+pub async fn reconcile_hive(hive: Arc<HelloworldCluster>, ctx: Arc<Ctx>) -> Result<Action> {
     tracing::info!("Starting reconcile");
     let client = &ctx.client;
     let resolved_product_image: ResolvedProductImage =
         hive.spec.image.resolve(DOCKER_IMAGE_BASE_NAME);
-
-    let s3_connection_spec: Option<S3ConnectionSpec> =
-        if let Some(s3) = &hive.spec.cluster_config.s3 {
-            Some(
-                s3.resolve(
-                    client,
-                    &hive.namespace().ok_or(Error::ObjectHasNoNamespace)?,
-                )
-                .await
-                .context(ResolveS3ConnectionSnafu)?,
-            )
-        } else {
-            None
-        };
 
     let validated_config = validate_all_roles_and_groups_config(
         &resolved_product_image.product_version,
@@ -311,7 +296,6 @@ pub async fn reconcile_hive(hive: Arc<HiveCluster>, ctx: Arc<Ctx>) -> Result<Act
             &resolved_product_image,
             &rolegroup,
             rolegroup_config,
-            s3_connection_spec.as_ref(),
             &config,
             vector_aggregator_address.as_deref(),
         )?;
@@ -320,7 +304,6 @@ pub async fn reconcile_hive(hive: Arc<HiveCluster>, ctx: Arc<Ctx>) -> Result<Act
             &resolved_product_image,
             &rolegroup,
             rolegroup_config,
-            s3_connection_spec.as_ref(),
             &config,
             &rbac_sa.name_any(),
         )?;
@@ -375,7 +358,7 @@ pub async fn reconcile_hive(hive: Arc<HiveCluster>, ctx: Arc<Ctx>) -> Result<Act
     let cluster_operation_cond_builder =
         ClusterOperationsConditionBuilder::new(&hive.spec.cluster_operation);
 
-    let status = HiveClusterStatus {
+    let status = HelloworldClusterStatus {
         // Serialize as a string to discourage users from trying to parse the value,
         // and to keep things flexible if we end up changing the hasher at some point.
         discovery_hash: Some(discovery_hash.finish().to_string()),
@@ -401,7 +384,7 @@ pub async fn reconcile_hive(hive: Arc<HiveCluster>, ctx: Arc<Ctx>) -> Result<Act
 /// The server-role service is the primary endpoint that should be used by clients that do not
 /// perform internal load balancing including targets outside of the cluster.
 pub fn build_metastore_role_service(
-    hive: &HiveCluster,
+    hive: &HelloworldCluster,
     resolved_product_image: &ResolvedProductImage,
 ) -> Result<Service> {
     let role_name = HiveRole::MetaStore.to_string();
@@ -434,11 +417,10 @@ pub fn build_metastore_role_service(
 
 /// The rolegroup [`ConfigMap`] configures the rolegroup based on the configuration given by the administrator
 fn build_metastore_rolegroup_config_map(
-    hive: &HiveCluster,
+    hive: &HelloworldCluster,
     resolved_product_image: &ResolvedProductImage,
-    rolegroup: &RoleGroupRef<HiveCluster>,
+    rolegroup: &RoleGroupRef<HelloworldCluster>,
     role_group_config: &HashMap<PropertyNameKind, BTreeMap<String, String>>,
-    s3_connection_spec: Option<&S3ConnectionSpec>,
     merged_config: &MetaStoreConfig,
     vector_aggregator_address: Option<&str>,
 ) -> Result<ConfigMap> {
@@ -488,42 +470,6 @@ fn build_metastore_rolegroup_config_map(
                     MetaStoreConfig::METASTORE_WAREHOUSE_DIR.to_string(),
                     Some("/stackable/warehouse".to_string()),
                 );
-
-                if let Some(s3) = s3_connection_spec {
-                    data.insert(MetaStoreConfig::S3_ENDPOINT.to_string(), s3.endpoint());
-                    // The variable substitution is only available from version 3.
-                    // if s3.secret_class.is_some() {
-                    //     data.insert(
-                    //         MetaStoreConfig::S3_ACCESS_KEY.to_string(),
-                    //         Some(format!("${{env.{ENV_S3_ACCESS_KEY}}}")),
-                    //     );
-                    //     data.insert(
-                    //         MetaStoreConfig::S3_SECRET_KEY.to_string(),
-                    //         Some(format!("${{env.{ENV_S3_SECRET_KEY}}}")),
-                    //     );
-                    // }
-                    // Thats why we need to replace this via script in the container command.
-                    if s3.credentials.is_some() {
-                        data.insert(
-                            MetaStoreConfig::S3_ACCESS_KEY.to_string(),
-                            Some(command::ACCESS_KEY_PLACEHOLDER.to_string()),
-                        );
-                        data.insert(
-                            MetaStoreConfig::S3_SECRET_KEY.to_string(),
-                            Some(command::SECRET_KEY_PLACEHOLDER.to_string()),
-                        );
-                    }
-                    // END
-
-                    data.insert(
-                        MetaStoreConfig::S3_SSL_ENABLED.to_string(),
-                        Some(s3.tls.is_some().to_string()),
-                    );
-                    data.insert(
-                        MetaStoreConfig::S3_PATH_STYLE_ACCESS.to_string(),
-                        Some((s3.access_style == Some(S3AccessStyle::Path)).to_string()),
-                    );
-                }
 
                 // overrides
                 for (property_name, property_value) in config {
@@ -578,9 +524,9 @@ fn build_metastore_rolegroup_config_map(
 ///
 /// This is mostly useful for internal communication between peers, or for clients that perform client-side load balancing.
 fn build_rolegroup_service(
-    hive: &HiveCluster,
+    hive: &HelloworldCluster,
     resolved_product_image: &ResolvedProductImage,
-    rolegroup: &RoleGroupRef<HiveCluster>,
+    rolegroup: &RoleGroupRef<HelloworldCluster>,
 ) -> Result<Service> {
     Ok(Service {
         metadata: ObjectMetaBuilder::new()
@@ -619,11 +565,10 @@ fn build_rolegroup_service(
 /// The [`Pod`](`stackable_operator::k8s_openapi::api::core::v1::Pod`)s are accessible through the
 /// corresponding [`Service`] (from [`build_rolegroup_service`]).
 fn build_metastore_rolegroup_statefulset(
-    hive: &HiveCluster,
+    hive: &HelloworldCluster,
     resolved_product_image: &ResolvedProductImage,
-    rolegroup_ref: &RoleGroupRef<HiveCluster>,
+    rolegroup_ref: &RoleGroupRef<HelloworldCluster>,
     metastore_config: &HashMap<PropertyNameKind, BTreeMap<String, String>>,
-    s3_connection: Option<&S3ConnectionSpec>,
     merged_config: &MetaStoreConfig,
     sa_name: &str,
 ) -> Result<StatefulSet> {
@@ -634,7 +579,6 @@ fn build_metastore_rolegroup_statefulset(
         .context(NoMetaStoreRoleSnafu)?
         .role_groups
         .get(&rolegroup_ref.role_group);
-    let mut db_type: Option<DbType> = None;
     let mut container_builder =
         ContainerBuilder::new(APP_NAME).context(FailedToCreateHiveContainerSnafu {
             name: APP_NAME.to_string(),
@@ -652,68 +596,11 @@ fn build_metastore_rolegroup_statefulset(
                     container_builder.add_env_var(property_name, property_value);
                 }
             }
-            PropertyNameKind::Cli => {
-                for (property_name, property_value) in config {
-                    if property_name == MetaStoreConfig::DB_TYPE_CLI {
-                        db_type = Some(DbType::from_str(property_value).with_context(|_| {
-                            InvalidDbTypeSnafu {
-                                db_type: property_value.to_string(),
-                            }
-                        })?);
-                    }
-                }
-            }
             _ => {}
         }
     }
 
     let mut pod_builder = PodBuilder::new();
-
-    if let Some(hdfs) = &hive.spec.cluster_config.hdfs {
-        pod_builder.add_volume(
-            VolumeBuilder::new("hdfs-site")
-                .with_config_map(&hdfs.config_map)
-                .build(),
-        );
-        container_builder.add_volume_mounts(vec![VolumeMount {
-            name: "hdfs-site".to_string(),
-            mount_path: format!("{STACKABLE_CONFIG_DIR}/hdfs-site.xml"),
-            sub_path: Some("hdfs-site.xml".to_string()),
-            ..VolumeMount::default()
-        }]);
-    }
-
-    if let Some(s3_conn) = s3_connection {
-        if let Some(credentials) = &s3_conn.credentials {
-            pod_builder.add_volume(credentials.to_volume("s3-credentials"));
-            container_builder.add_volume_mount("s3-credentials", S3_SECRET_DIR);
-        }
-
-        if let Some(tls) = &s3_conn.tls {
-            match &tls.verification {
-                TlsVerification::None {} => return S3TlsNoVerificationNotSupportedSnafu.fail(),
-                TlsVerification::Server(server_verification) => {
-                    match &server_verification.ca_cert {
-                        CaCert::WebPki {} => {}
-                        CaCert::SecretClass(secret_class) => {
-                            let volume_name = format!("{secret_class}-tls-certificate");
-
-                            let volume = VolumeBuilder::new(&volume_name)
-                                .ephemeral(
-                                    SecretOperatorVolumeSourceBuilder::new(secret_class).build(),
-                                )
-                                .build();
-                            pod_builder.add_volume(volume);
-                            container_builder.add_volume_mount(
-                                &volume_name,
-                                format!("{CERTS_DIR}{volume_name}"),
-                            );
-                        }
-                    }
-                }
-            }
-        }
-    }
 
     let container_hive = container_builder
         .image_from_product_image(resolved_product_image)
@@ -723,12 +610,6 @@ fn build_metastore_rolegroup_statefulset(
             "-euo".to_string(),
             "pipefail".to_string(),
         ])
-        .args(build_container_command_args(
-            HiveRole::MetaStore
-                .get_command(true, &db_type.unwrap_or_default().to_string())
-                .join(" "),
-            s3_connection,
-        ))
         .add_volume_mount(STACKABLE_CONFIG_DIR_NAME, STACKABLE_CONFIG_DIR)
         .add_volume_mount(STACKABLE_CONFIG_MOUNT_DIR_NAME, STACKABLE_CONFIG_MOUNT_DIR)
         .add_volume_mount(STACKABLE_LOG_DIR_NAME, STACKABLE_LOG_DIR)
@@ -878,7 +759,7 @@ fn build_metastore_rolegroup_statefulset(
     })
 }
 
-pub fn error_policy(_obj: Arc<HiveCluster>, _error: &Error, _ctx: Arc<Ctx>) -> Action {
+pub fn error_policy(_obj: Arc<HelloworldCluster>, _error: &Error, _ctx: Arc<Ctx>) -> Action {
     Action::requeue(Duration::from_secs(5))
 }
 

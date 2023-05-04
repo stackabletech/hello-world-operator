@@ -1,7 +1,7 @@
 use crate::controller::build_recommended_labels;
 
 use snafu::{OptionExt, ResultExt, Snafu};
-use crate::crd::{HiveCluster, HiveRole, ServiceType, HIVE_PORT, HIVE_PORT_NAME};
+use crate::crd::{HelloworldCluster, HiveRole, ServiceType, HIVE_PORT, HIVE_PORT_NAME};
 use stackable_operator::commons::product_image_selection::ResolvedProductImage;
 use stackable_operator::{
     builder::{ConfigMapBuilder, ObjectMetaBuilder},
@@ -21,7 +21,7 @@ pub enum Error {
     #[snafu(display("object is missing metadata to build owner reference {hive}"))]
     ObjectMissingMetadataForOwnerRef {
         source: stackable_operator::error::Error,
-        hive: ObjectRef<HiveCluster>,
+        hive: ObjectRef<HelloworldCluster>,
     },
     #[snafu(display("chroot path {chroot} was relative (must be absolute)"))]
     RelativeChroot { chroot: String },
@@ -32,7 +32,7 @@ pub enum Error {
     #[snafu(display("could not build discovery config map for {obj_ref}"))]
     DiscoveryConfigMap {
         source: stackable_operator::error::Error,
-        obj_ref: ObjectRef<HiveCluster>,
+        obj_ref: ObjectRef<HelloworldCluster>,
     },
     #[snafu(display("could not find service [{obj_ref}] port [{port_name}]"))]
     NoServicePort {
@@ -59,7 +59,7 @@ pub enum Error {
 pub async fn build_discovery_configmaps(
     client: &stackable_operator::client::Client,
     owner: &impl Resource<DynamicType = ()>,
-    hive: &HiveCluster,
+    hive: &HelloworldCluster,
     resolved_product_image: &ResolvedProductImage,
     svc: &Service,
     chroot: Option<&str>,
@@ -105,7 +105,7 @@ pub async fn build_discovery_configmaps(
 fn build_discovery_configmap(
     name: &str,
     owner: &impl Resource<DynamicType = ()>,
-    hive: &HiveCluster,
+    hive: &HelloworldCluster,
     resolved_product_image: &ResolvedProductImage,
     chroot: Option<&str>,
     hosts: impl IntoIterator<Item = (impl Into<String>, u16)>,
@@ -146,7 +146,7 @@ fn build_discovery_configmap(
 }
 
 /// Lists all Pods FQDNs expected to host the [`HiveCluster`]
-fn pod_hosts(hive: &HiveCluster) -> Result<impl IntoIterator<Item = (String, u16)> + '_, Error> {
+fn pod_hosts(hive: &HelloworldCluster) -> Result<impl IntoIterator<Item = (String, u16)> + '_, Error> {
     Ok(hive
         .pods()
         .context(ExpectedPodsSnafu)?

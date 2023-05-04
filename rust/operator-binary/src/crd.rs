@@ -10,8 +10,7 @@ use stackable_operator::{
         resources::{
             CpuLimitsFragment, MemoryLimitsFragment, NoRuntimeLimits, NoRuntimeLimitsFragment,
             PvcConfig, PvcConfigFragment, Resources, ResourcesFragment,
-        },
-        s3::S3ConnectionDef,
+        }
     },
     config::{fragment, fragment::Fragment, fragment::ValidationError, merge::Merge},
     k8s_openapi::apimachinery::pkg::api::resource::Quantity,
@@ -23,7 +22,7 @@ use stackable_operator::{
     status::condition::{ClusterCondition, HasStatusCondition},
 };
 use std::collections::BTreeMap;
-use strum::{Display, EnumIter, EnumString};
+use strum::{Display, EnumIter};
 
 pub const APP_NAME: &str = "hive";
 // directories
@@ -67,12 +66,12 @@ pub enum Error {
 #[derive(Clone, CustomResource, Debug, Deserialize, JsonSchema, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 #[kube(
-    group = "hive.stackable.tech",
+    group = "hello.stackable.tech",
     version = "v1alpha1",
-    kind = "HiveCluster",
-    plural = "hiveclusters",
-    shortname = "hive",
-    status = "HiveClusterStatus",
+    kind = "HelloworldCluster",
+    plural = "helloworldclusters",
+    shortname = "hello",
+    status = "HelloworldClusterStatus",
     namespaced,
     crates(
         kube_core = "stackable_operator::kube::core",
@@ -80,7 +79,7 @@ pub enum Error {
         schemars = "stackable_operator::schemars"
     )
 )]
-pub struct HiveClusterSpec {
+pub struct HelloworldClusterSpec {
     /// General Hive metastore cluster settings
     pub cluster_config: HiveClusterConfig,
     /// Cluster operations like pause reconciliation or cluster stop.
@@ -95,14 +94,6 @@ pub struct HiveClusterSpec {
 #[derive(Clone, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct HiveClusterConfig {
-    /// Database connection specification
-    pub database: DatabaseConnectionSpec,
-    /// HDFS connection specification
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub hdfs: Option<HdfsConnection>,
-    /// S3 connection specification
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub s3: Option<S3ConnectionDef>,
     /// Name of the Vector aggregator discovery ConfigMap.
     /// It must contain the key `ADDRESS` with the address of the Vector aggregator.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -145,13 +136,6 @@ impl CurrentlySupportedListenerClasses {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct HdfsConnection {
-    /// Name of the discovery-configmap providing information about the HDFS cluster
-    pub config_map: String,
-}
-
 #[derive(Display)]
 #[strum(serialize_all = "camelCase")]
 pub enum HiveRole {
@@ -161,14 +145,12 @@ pub enum HiveRole {
 
 impl HiveRole {
     /// Returns the container start command for the metastore service.
-    pub fn get_command(&self, auto_init_schema: bool, db_type: &str) -> Vec<String> {
+    pub fn get_command(&self, auto_init_schema: bool) -> Vec<String> {
         if auto_init_schema {
             vec![
                 "bin/start-metastore".to_string(),
                 "--config".to_string(),
                 STACKABLE_CONFIG_DIR.to_string(),
-                "--db-type".to_string(),
-                db_type.to_string(),
                 "--hive-bin-dir".to_string(),
                 "bin".to_string(),
             ]
@@ -305,60 +287,8 @@ impl Default for ServiceType {
     }
 }
 
-#[derive(
-    Clone, Debug, Deserialize, Eq, Hash, JsonSchema, PartialEq, Serialize, Display, EnumString,
-)]
-pub enum DbType {
-    #[serde(rename = "derby")]
-    #[strum(serialize = "derby")]
-    Derby,
-
-    #[serde(rename = "mysql")]
-    #[strum(serialize = "mysql")]
-    Mysql,
-
-    #[serde(rename = "postgres")]
-    #[strum(serialize = "postgres")]
-    Postgres,
-
-    #[serde(rename = "oracle")]
-    #[strum(serialize = "oracle")]
-    Oracle,
-
-    #[serde(rename = "mssql")]
-    #[strum(serialize = "mssql")]
-    Mssql,
-}
-
-impl Default for DbType {
-    fn default() -> Self {
-        Self::Derby
-    }
-}
-
-impl DbType {
-    pub fn get_jdbc_driver_class(&self) -> &str {
-        match self {
-            DbType::Derby => "org.apache.derby.jdbc.EmbeddedDriver",
-            DbType::Mysql => "com.mysql.jdbc.Driver",
-            DbType::Postgres => "org.postgresql.Driver",
-            DbType::Mssql => "com.microsoft.sqlserver.jdbc.SQLServerDriver",
-            DbType::Oracle => "oracle.jdbc.driver.OracleDriver",
-        }
-    }
-}
-
-#[derive(Clone, Debug, Default, Deserialize, Eq, Hash, JsonSchema, PartialEq, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct DatabaseConnectionSpec {
-    pub conn_string: String,
-    pub user: String,
-    pub password: String,
-    pub db_type: DbType,
-}
-
 impl Configuration for MetaStoreConfigFragment {
-    type Configurable = HiveCluster;
+    type Configurable = HelloworldCluster;
 
     fn compute_env(
         &self,
@@ -386,10 +316,7 @@ impl Configuration for MetaStoreConfigFragment {
         _role_name: &str,
     ) -> Result<BTreeMap<String, Option<String>>, ConfigError> {
         let mut result = BTreeMap::new();
-        result.insert(
-            MetaStoreConfig::DB_TYPE_CLI.to_string(),
-            Some(hive.spec.cluster_config.database.db_type.to_string()),
-        );
+        // No CLI args necessary
         Ok(result)
     }
 
@@ -408,30 +335,7 @@ impl Configuration for MetaStoreConfigFragment {
                         MetaStoreConfig::METASTORE_WAREHOUSE_DIR.to_string(),
                         Some(warehouse_dir.to_string()),
                     );
-                }
-                result.insert(
-                    MetaStoreConfig::CONNECTION_URL.to_string(),
-                    Some(hive.spec.cluster_config.database.conn_string.clone()),
-                );
-                result.insert(
-                    MetaStoreConfig::CONNECTION_USER_NAME.to_string(),
-                    Some(hive.spec.cluster_config.database.user.clone()),
-                );
-                result.insert(
-                    MetaStoreConfig::CONNECTION_PASSWORD.to_string(),
-                    Some(hive.spec.cluster_config.database.password.clone()),
-                );
-                result.insert(
-                    MetaStoreConfig::CONNECTION_DRIVER_NAME.to_string(),
-                    Some(
-                        hive.spec
-                            .cluster_config
-                            .database
-                            .db_type
-                            .get_jdbc_driver_class()
-                            .to_string(),
-                    ),
-                );
+                };
 
                 result.insert(
                     MetaStoreConfig::METASTORE_METRICS_ENABLED.to_string(),
@@ -448,14 +352,14 @@ impl Configuration for MetaStoreConfigFragment {
 
 #[derive(Clone, Default, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct HiveClusterStatus {
+pub struct HelloworldClusterStatus {
     /// An opaque value that changes every time a discovery detail does
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub discovery_hash: Option<String>,
     pub conditions: Vec<ClusterCondition>,
 }
 
-impl HasStatusCondition for HiveCluster {
+impl HasStatusCondition for HelloworldCluster {
     fn conditions(&self) -> Vec<ClusterCondition> {
         match &self.status {
             Some(status) => status.conditions.clone(),
@@ -468,7 +372,7 @@ impl HasStatusCondition for HiveCluster {
 #[snafu(display("object has no namespace associated"))]
 pub struct NoNamespaceError;
 
-impl HiveCluster {
+impl HelloworldCluster {
     /// The name of the role-level load-balanced Kubernetes `Service`
     pub fn metastore_role_service_name(&self) -> Option<&str> {
         self.metadata.name.as_deref()
@@ -478,7 +382,7 @@ impl HiveCluster {
     pub fn metastore_rolegroup_ref(
         &self,
         group_name: impl Into<String>,
-    ) -> RoleGroupRef<HiveCluster> {
+    ) -> RoleGroupRef<HelloworldCluster> {
         RoleGroupRef {
             cluster: ObjectRef::from_obj(self),
             role: HiveRole::MetaStore.to_string(),
