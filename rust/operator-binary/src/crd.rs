@@ -24,7 +24,7 @@ use stackable_operator::{
 use std::collections::BTreeMap;
 use strum::{Display, EnumIter};
 
-pub const APP_NAME: &str = "hive";
+pub const APP_NAME: &str = "hello";
 // directories
 pub const STACKABLE_CONFIG_DIR: &str = "/stackable/config";
 pub const STACKABLE_CONFIG_DIR_NAME: &str = "config";
@@ -48,9 +48,6 @@ pub const STACKABLE_TRUST_STORE: &str = "/stackable/truststore.p12";
 pub const STACKABLE_TRUST_STORE_PASSWORD: &str = "changeit";
 // metastore opts
 pub const HIVE_METASTORE_HADOOP_OPTS: &str = "HIVE_METASTORE_HADOOP_OPTS";
-// heap
-pub const HADOOP_HEAPSIZE: &str = "HADOOP_HEAPSIZE";
-pub const JVM_HEAP_FACTOR: f32 = 0.8;
 
 #[derive(Snafu, Debug)]
 pub enum Error {
@@ -138,29 +135,6 @@ impl CurrentlySupportedListenerClasses {
 pub enum HelloRole {
     #[strum(serialize = "server")]
     Server,
-}
-
-impl HelloRole {
-    /// Returns the container start command for the metastore service.
-    pub fn get_command(&self, auto_init_schema: bool) -> Vec<String> {
-        if auto_init_schema {
-            vec![
-                "bin/start-metastore".to_string(),
-                "--config".to_string(),
-                STACKABLE_CONFIG_DIR.to_string(),
-                "--hive-bin-dir".to_string(),
-                "bin".to_string(),
-            ]
-        } else {
-            vec![
-                "/bin/hive".to_string(),
-                "--config".to_string(),
-                STACKABLE_CONFIG_DIR.to_string(),
-                "--service".to_string(),
-                "metastore".to_string(),
-            ]
-        }
-    }
 }
 
 #[derive(

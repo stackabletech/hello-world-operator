@@ -3,15 +3,14 @@ use crate::product_logging::{extend_role_group_config_map, resolve_vector_aggreg
 use crate::{discovery, OPERATOR_NAME};
 
 use crate::crd::{
-    Container, HelloCluster, HelloClusterStatus, HelloRole, MetaStoreConfig, APP_NAME,
-    HADOOP_HEAPSIZE, HIVE_ENV_SH, HIVE_PORT, HIVE_PORT_NAME, HIVE_SITE_XML, JVM_HEAP_FACTOR,
-    METRICS_PORT, METRICS_PORT_NAME, STACKABLE_CONFIG_DIR, STACKABLE_CONFIG_DIR_NAME,
-    STACKABLE_CONFIG_MOUNT_DIR, STACKABLE_CONFIG_MOUNT_DIR_NAME, STACKABLE_LOG_CONFIG_MOUNT_DIR,
+    Container, HelloCluster, HelloClusterStatus, HelloRole, MetaStoreConfig, APP_NAME, HIVE_ENV_SH,
+    HIVE_PORT, HIVE_PORT_NAME, HIVE_SITE_XML, METRICS_PORT, METRICS_PORT_NAME,
+    STACKABLE_CONFIG_DIR, STACKABLE_CONFIG_DIR_NAME, STACKABLE_CONFIG_MOUNT_DIR,
+    STACKABLE_CONFIG_MOUNT_DIR_NAME, STACKABLE_LOG_CONFIG_MOUNT_DIR,
     STACKABLE_LOG_CONFIG_MOUNT_DIR_NAME, STACKABLE_LOG_DIR, STACKABLE_LOG_DIR_NAME,
 };
 use fnv::FnvHasher;
 use snafu::{OptionExt, ResultExt, Snafu};
-use stackable_operator::memory::MemoryQuantity;
 use stackable_operator::{
     builder::{
         ConfigMapBuilder, ContainerBuilder, ObjectMetaBuilder, PodBuilder,
@@ -34,7 +33,6 @@ use stackable_operator::{
     kube::{runtime::controller::Action, Resource, ResourceExt},
     labels::{role_group_selector_labels, role_selector_labels, ObjectLabels},
     logging::controller::ReconcilerError,
-    memory::BinaryMultiple,
     product_config::{types::PropertyNameKind, ProductConfigManager},
     product_config_utils::{transform_all_roles_to_config, validate_all_roles_and_groups_config},
     product_logging::{
@@ -424,24 +422,6 @@ fn build_metastore_rolegroup_config_map(
         match property_name_kind {
             PropertyNameKind::File(file_name) if file_name == HIVE_ENV_SH => {
                 let mut data = BTreeMap::new();
-
-                let memory_limit = MemoryQuantity::try_from(
-                    merged_config
-                        .resources
-                        .memory
-                        .limit
-                        .as_ref()
-                        .context(InvalidJavaHeapConfigSnafu)?,
-                )
-                .context(FailedToConvertJavaHeapSnafu {
-                    unit: BinaryMultiple::Mebi.to_java_memory_unit(),
-                })?;
-                let heap_in_mebi = (memory_limit * JVM_HEAP_FACTOR)
-                    .scale_to(BinaryMultiple::Mebi)
-                    .floor()
-                    .value as u32;
-
-                data.insert(HADOOP_HEAPSIZE.to_string(), Some(heap_in_mebi.to_string()));
 
                 // other properties /  overrides
                 for (property_name, property_value) in config {
