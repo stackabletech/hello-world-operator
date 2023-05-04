@@ -1,5 +1,4 @@
 use crate::affinity::get_affinity;
-use indoc::formatdoc;
 use serde::{Deserialize, Serialize};
 use snafu::{OptionExt, ResultExt, Snafu};
 use stackable_operator::{
@@ -35,19 +34,16 @@ pub const STACKABLE_LOG_DIR_NAME: &str = "log";
 pub const STACKABLE_LOG_CONFIG_MOUNT_DIR: &str = "/stackable/mount/log-config";
 pub const STACKABLE_LOG_CONFIG_MOUNT_DIR_NAME: &str = "log-config-mount";
 // config file names
-pub const HIVE_SITE_XML: &str = "hive-site.xml";
-pub const HIVE_ENV_SH: &str = "hive-env.sh";
+pub const INDEX_HTML: &str = "index.html";
 pub const HIVE_LOG4J2_PROPERTIES: &str = "hive-log4j2.properties";
+// HTML file keys
+pub const HELLO_RECIPIENT: &str = "RECIPIENT";
+pub const HELLO_COLOR: &str = "COLOR";
 // default ports
 pub const HIVE_PORT_NAME: &str = "hive";
 pub const HIVE_PORT: u16 = 9083;
 pub const METRICS_PORT_NAME: &str = "metrics";
 pub const METRICS_PORT: u16 = 9084;
-// certificates and trust stores
-pub const STACKABLE_TRUST_STORE: &str = "/stackable/truststore.p12";
-pub const STACKABLE_TRUST_STORE_PASSWORD: &str = "changeit";
-// metastore opts
-pub const HIVE_METASTORE_HADOOP_OPTS: &str = "HIVE_METASTORE_HADOOP_OPTS";
 
 #[derive(Snafu, Debug)]
 pub enum Error {
@@ -82,7 +78,9 @@ pub struct HelloClusterSpec {
     /// The Hive metastore image to use
     pub image: ProductImage,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub server: Option<Role<MetaStoreConfigFragment>>,
+    pub server: Option<Role<ServerConfigFragment>>,
+    pub recipient: String,
+    pub color: String,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
@@ -171,7 +169,7 @@ pub enum Container {
     ),
     serde(rename_all = "camelCase")
 )]
-pub struct MetastoreStorageConfig {
+pub struct ServerStorageConfig {
     #[fragment_attrs(serde(default))]
     pub data: PvcConfig,
 }
@@ -190,36 +188,21 @@ pub struct MetastoreStorageConfig {
     ),
     serde(rename_all = "camelCase")
 )]
-pub struct MetaStoreConfig {
+pub struct ServerConfig {
     /// The location of default database for the Hive warehouse.
     /// Maps to the `hive.metastore.warehouse.dir` setting.
     pub warehouse_dir: Option<String>,
     #[fragment_attrs(serde(default))]
-    pub resources: Resources<MetastoreStorageConfig, NoRuntimeLimits>,
+    pub resources: Resources<ServerStorageConfig, NoRuntimeLimits>,
     #[fragment_attrs(serde(default))]
     pub logging: Logging<Container>,
     #[fragment_attrs(serde(default))]
     pub affinity: StackableAffinity,
 }
 
-impl MetaStoreConfig {
-    // metastore
-    pub const CONNECTION_URL: &'static str = "javax.jdo.option.ConnectionURL";
-    pub const CONNECTION_DRIVER_NAME: &'static str = "javax.jdo.option.ConnectionDriverName";
-    pub const CONNECTION_USER_NAME: &'static str = "javax.jdo.option.ConnectionUserName";
-    pub const CONNECTION_PASSWORD: &'static str = "javax.jdo.option.ConnectionPassword";
-    pub const METASTORE_METRICS_ENABLED: &'static str = "hive.metastore.metrics.enabled";
-    pub const METASTORE_WAREHOUSE_DIR: &'static str = "hive.metastore.warehouse.dir";
-    pub const DB_TYPE_CLI: &'static str = "dbType";
-    // S3
-    pub const S3_ENDPOINT: &'static str = "fs.s3a.endpoint";
-    pub const S3_ACCESS_KEY: &'static str = "fs.s3a.access.key";
-    pub const S3_SECRET_KEY: &'static str = "fs.s3a.secret.key";
-    pub const S3_SSL_ENABLED: &'static str = "fs.s3a.connection.ssl.enabled";
-    pub const S3_PATH_STYLE_ACCESS: &'static str = "fs.s3a.path.style.access";
-
-    fn default_config(cluster_name: &str, role: &HelloRole) -> MetaStoreConfigFragment {
-        MetaStoreConfigFragment {
+impl ServerConfig {
+    fn default_config(cluster_name: &str, role: &HelloRole) -> ServerConfigFragment {
+        ServerConfigFragment {
             warehouse_dir: None,
             resources: ResourcesFragment {
                 cpu: CpuLimitsFragment {
@@ -230,7 +213,7 @@ impl MetaStoreConfig {
                     limit: Some(Quantity("2Gi".to_owned())),
                     runtime_limits: NoRuntimeLimitsFragment {},
                 },
-                storage: MetastoreStorageConfigFragment {
+                storage: ServerStorageConfigFragment {
                     data: PvcConfigFragment {
                         capacity: Some(Quantity("2Gi".to_owned())),
                         storage_class: None,
@@ -258,7 +241,7 @@ impl Default for ServiceType {
     }
 }
 
-impl Configuration for MetaStoreConfigFragment {
+impl Configuration for ServerConfigFragment {
     type Configurable = HelloCluster;
 
     fn compute_env(
@@ -266,18 +249,8 @@ impl Configuration for MetaStoreConfigFragment {
         _hive: &Self::Configurable,
         _role_name: &str,
     ) -> Result<BTreeMap<String, Option<String>>, ConfigError> {
-        let mut result = BTreeMap::new();
-
-        result.insert(
-            HIVE_METASTORE_HADOOP_OPTS.to_string(),
-            Some(formatdoc! {"
-                    -javaagent:/stackable/jmx/jmx_prometheus_javaagent-0.16.1.jar={METRICS_PORT}:/stackable/jmx/jmx_hive_config.yaml
-                    -Djavax.net.ssl.trustStore={STACKABLE_TRUST_STORE}
-                    -Djavax.net.ssl.trustStorePassword={STACKABLE_TRUST_STORE_PASSWORD}
-                    -Djavax.net.ssl.trustStoreType=pkcs12"}
-                )
-            );
-
+        let result = BTreeMap::new();
+        // no ENV args necessary
         Ok(result)
     }
 
@@ -293,27 +266,20 @@ impl Configuration for MetaStoreConfigFragment {
 
     fn compute_files(
         &self,
-        _hello: &Self::Configurable,
+        hello: &Self::Configurable,
         _role_name: &str,
         file: &str,
     ) -> Result<BTreeMap<String, Option<String>>, ConfigError> {
         let mut result = BTreeMap::new();
 
         match file {
-            HIVE_SITE_XML => {
-                if let Some(warehouse_dir) = &self.warehouse_dir {
-                    result.insert(
-                        MetaStoreConfig::METASTORE_WAREHOUSE_DIR.to_string(),
-                        Some(warehouse_dir.to_string()),
-                    );
-                };
-
+            INDEX_HTML => {
                 result.insert(
-                    MetaStoreConfig::METASTORE_METRICS_ENABLED.to_string(),
-                    Some("true".to_string()),
+                    HELLO_RECIPIENT.to_owned(),
+                    Some(hello.spec.recipient.to_owned()),
                 );
+                result.insert(HELLO_COLOR.to_owned(), Some(hello.spec.color.to_owned()));
             }
-            HIVE_ENV_SH => {}
             _ => {}
         }
 
@@ -345,12 +311,12 @@ pub struct NoNamespaceError;
 
 impl HelloCluster {
     /// The name of the role-level load-balanced Kubernetes `Service`
-    pub fn metastore_role_service_name(&self) -> Option<&str> {
+    pub fn server_role_service_name(&self) -> Option<&str> {
         self.metadata.name.as_deref()
     }
 
-    /// Metadata about a metastore rolegroup
-    pub fn metastore_rolegroup_ref(
+    /// Metadata about a server rolegroup
+    pub fn server_rolegroup_ref(
         &self,
         group_name: impl Into<String>,
     ) -> RoleGroupRef<HelloCluster> {
@@ -376,7 +342,7 @@ impl HelloCluster {
             .collect::<BTreeMap<_, _>>()
             .into_iter()
             .flat_map(move |(rolegroup_name, rolegroup)| {
-                let rolegroup_ref = self.metastore_rolegroup_ref(rolegroup_name);
+                let rolegroup_ref = self.server_rolegroup_ref(rolegroup_name);
                 let ns = ns.clone();
                 (0..rolegroup.replicas.unwrap_or(0)).map(move |i| PodRef {
                     namespace: ns.clone(),
@@ -386,20 +352,16 @@ impl HelloCluster {
             }))
     }
 
-    pub fn get_role(&self, role: &HelloRole) -> Option<&Role<MetaStoreConfigFragment>> {
+    pub fn get_role(&self, role: &HelloRole) -> Option<&Role<ServerConfigFragment>> {
         match role {
             HelloRole::Server => self.spec.server.as_ref(),
         }
     }
 
     /// Retrieve and merge resource configs for role and role groups
-    pub fn merged_config(
-        &self,
-        role: &HelloRole,
-        role_group: &str,
-    ) -> Result<MetaStoreConfig, Error> {
+    pub fn merged_config(&self, role: &HelloRole, role_group: &str) -> Result<ServerConfig, Error> {
         // Initialize the result with all default values as baseline
-        let conf_defaults = MetaStoreConfig::default_config(&self.name_any(), role);
+        let conf_defaults = ServerConfig::default_config(&self.name_any(), role);
 
         let role = self.get_role(role).context(MissingMetaStoreRoleSnafu)?;
 
@@ -437,7 +399,7 @@ impl HelloCluster {
     }
 }
 
-/// Reference to a single `Pod` that is a component of a [`HiveCluster`]
+/// Reference to a single `Pod` that is a component of a [`HelloCluster`]
 /// Used for service discovery.
 pub struct PodRef {
     pub namespace: String,

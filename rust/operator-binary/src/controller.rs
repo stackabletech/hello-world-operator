@@ -3,8 +3,8 @@ use crate::product_logging::{extend_role_group_config_map, resolve_vector_aggreg
 use crate::{discovery, OPERATOR_NAME};
 
 use crate::crd::{
-    Container, HelloCluster, HelloClusterStatus, HelloRole, MetaStoreConfig, APP_NAME, HIVE_ENV_SH,
-    HIVE_PORT, HIVE_PORT_NAME, HIVE_SITE_XML, METRICS_PORT, METRICS_PORT_NAME,
+    Container, HelloCluster, HelloClusterStatus, HelloRole, ServerConfig, APP_NAME, HELLO_COLOR,
+    HELLO_RECIPIENT, HIVE_PORT, HIVE_PORT_NAME, INDEX_HTML, METRICS_PORT, METRICS_PORT_NAME,
     STACKABLE_CONFIG_DIR, STACKABLE_CONFIG_DIR_NAME, STACKABLE_CONFIG_MOUNT_DIR,
     STACKABLE_CONFIG_MOUNT_DIR_NAME, STACKABLE_LOG_CONFIG_MOUNT_DIR,
     STACKABLE_LOG_CONFIG_MOUNT_DIR_NAME, STACKABLE_LOG_DIR, STACKABLE_LOG_DIR_NAME,
@@ -215,8 +215,7 @@ pub async fn reconcile_hello(hive: Arc<HelloCluster>, ctx: Arc<Ctx>) -> Result<A
                     vec![
                         PropertyNameKind::Env,
                         PropertyNameKind::Cli,
-                        PropertyNameKind::File(HIVE_SITE_XML.to_string()),
-                        PropertyNameKind::File(HIVE_ENV_SH.to_string()),
+                        PropertyNameKind::File(INDEX_HTML.to_string()),
                     ],
                     hive.spec.server.clone().context(NoMetaStoreRoleSnafu)?,
                 ),
@@ -275,14 +274,14 @@ pub async fn reconcile_hello(hive: Arc<HelloCluster>, ctx: Arc<Ctx>) -> Result<A
     let mut ss_cond_builder = StatefulSetConditionBuilder::default();
 
     for (rolegroup_name, rolegroup_config) in metastore_config.iter() {
-        let rolegroup = hive.metastore_rolegroup_ref(rolegroup_name);
+        let rolegroup = hive.server_rolegroup_ref(rolegroup_name);
 
         let config = hive
             .merged_config(&HelloRole::Server, &rolegroup.role_group)
             .context(FailedToResolveResourceConfigSnafu)?;
 
         let rg_service = build_rolegroup_service(&hive, &resolved_product_image, &rolegroup)?;
-        let rg_configmap = build_metastore_rolegroup_config_map(
+        let rg_configmap = build_server_rolegroup_config_map(
             &hive,
             &resolved_product_image,
             &rolegroup,
@@ -381,7 +380,7 @@ pub fn build_metastore_role_service(
     let role_name = HelloRole::Server.to_string();
 
     let role_svc_name = hive
-        .metastore_role_service_name()
+        .server_role_service_name()
         .context(GlobalServiceNameNotFoundSnafu)?;
     Ok(Service {
         metadata: ObjectMetaBuilder::new()
@@ -407,50 +406,30 @@ pub fn build_metastore_role_service(
 }
 
 /// The rolegroup [`ConfigMap`] configures the rolegroup based on the configuration given by the administrator
-fn build_metastore_rolegroup_config_map(
-    hive: &HelloCluster,
+fn build_server_rolegroup_config_map(
+    hello: &HelloCluster,
     resolved_product_image: &ResolvedProductImage,
     rolegroup: &RoleGroupRef<HelloCluster>,
     role_group_config: &HashMap<PropertyNameKind, BTreeMap<String, String>>,
-    merged_config: &MetaStoreConfig,
+    merged_config: &ServerConfig,
     vector_aggregator_address: Option<&str>,
 ) -> Result<ConfigMap> {
-    let mut hive_site_data = String::new();
-    let mut hive_env_data = String::new();
+    let mut hello_index_html = String::new();
 
     for (property_name_kind, config) in role_group_config {
         match property_name_kind {
-            PropertyNameKind::File(file_name) if file_name == HIVE_ENV_SH => {
-                let mut data = BTreeMap::new();
+            PropertyNameKind::File(file_name) if file_name == INDEX_HTML => {
+                let recipient = config
+                    .get(HELLO_RECIPIENT)
+                    .map(|x| x.as_str())
+                    .unwrap_or("World");
+                let _color = config
+                    .get(HELLO_COLOR)
+                    .map(|x| x.as_str())
+                    .unwrap_or("#000000");
 
-                // other properties /  overrides
-                for (property_name, property_value) in config {
-                    data.insert(property_name.to_string(), Some(property_value.to_string()));
-                }
-
-                hive_env_data = data
-                    .into_iter()
-                    .map(|(key, value)| {
-                        format!("export {key}={val}", val = value.unwrap_or_default())
-                    })
-                    .collect::<Vec<String>>()
-                    .join("\n");
-            }
-            PropertyNameKind::File(file_name) if file_name == HIVE_SITE_XML => {
-                let mut data = BTreeMap::new();
-
-                data.insert(
-                    MetaStoreConfig::METASTORE_WAREHOUSE_DIR.to_string(),
-                    Some("/stackable/warehouse".to_string()),
-                );
-
-                // overrides
-                for (property_name, property_value) in config {
-                    data.insert(property_name.to_string(), Some(property_value.to_string()));
-                }
-
-                hive_site_data =
-                    stackable_operator::product_config::writer::to_hadoop_xml(data.iter());
+                // TODO make a proper HTML file with the color as well
+                hello_index_html = format!("Hello {}!", recipient);
             }
             _ => {}
         }
@@ -461,20 +440,19 @@ fn build_metastore_rolegroup_config_map(
     cm_builder
         .metadata(
             ObjectMetaBuilder::new()
-                .name_and_namespace(hive)
+                .name_and_namespace(hello)
                 .name(rolegroup.object_name())
-                .ownerreference_from_resource(hive, None, Some(true))
+                .ownerreference_from_resource(hello, None, Some(true))
                 .context(ObjectMissingMetadataForOwnerRefSnafu)?
                 .with_recommended_labels(build_recommended_labels(
-                    hive,
+                    hello,
                     &resolved_product_image.app_version_label,
                     &rolegroup.role,
                     &rolegroup.role_group,
                 ))
                 .build(),
         )
-        .add_data(HIVE_SITE_XML, hive_site_data)
-        .add_data(HIVE_ENV_SH, hive_env_data);
+        .add_data(INDEX_HTML, hello_index_html);
 
     extend_role_group_config_map(
         rolegroup,
@@ -542,7 +520,7 @@ fn build_metastore_rolegroup_statefulset(
     resolved_product_image: &ResolvedProductImage,
     rolegroup_ref: &RoleGroupRef<HelloCluster>,
     metastore_config: &HashMap<PropertyNameKind, BTreeMap<String, String>>,
-    merged_config: &MetaStoreConfig,
+    merged_config: &ServerConfig,
     sa_name: &str,
 ) -> Result<StatefulSet> {
     let rolegroup = hive
