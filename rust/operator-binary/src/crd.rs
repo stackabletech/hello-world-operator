@@ -40,10 +40,8 @@ pub const HIVE_LOG4J2_PROPERTIES: &str = "hive-log4j2.properties";
 pub const HELLO_RECIPIENT: &str = "RECIPIENT";
 pub const HELLO_COLOR: &str = "COLOR";
 // default ports
-pub const HIVE_PORT_NAME: &str = "hive";
-pub const HIVE_PORT: u16 = 9083;
-pub const METRICS_PORT_NAME: &str = "metrics";
-pub const METRICS_PORT: u16 = 9084;
+pub const HTTP_PORT_NAME: &str = "hive";
+pub const HTTP_PORT: u16 = 8080;
 
 #[derive(Snafu, Debug)]
 pub enum Error {

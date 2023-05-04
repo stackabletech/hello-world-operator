@@ -4,10 +4,10 @@ use crate::OPERATOR_NAME;
 
 use crate::crd::{
     Container, HelloCluster, HelloClusterStatus, HelloRole, ServerConfig, APP_NAME, HELLO_COLOR,
-    HELLO_RECIPIENT, HIVE_PORT, HIVE_PORT_NAME, INDEX_HTML, METRICS_PORT, METRICS_PORT_NAME,
-    STACKABLE_CONFIG_DIR, STACKABLE_CONFIG_DIR_NAME, STACKABLE_CONFIG_MOUNT_DIR,
-    STACKABLE_CONFIG_MOUNT_DIR_NAME, STACKABLE_LOG_CONFIG_MOUNT_DIR,
-    STACKABLE_LOG_CONFIG_MOUNT_DIR_NAME, STACKABLE_LOG_DIR, STACKABLE_LOG_DIR_NAME,
+    HELLO_RECIPIENT, HTTP_PORT, HTTP_PORT_NAME, INDEX_HTML, STACKABLE_CONFIG_DIR,
+    STACKABLE_CONFIG_DIR_NAME, STACKABLE_CONFIG_MOUNT_DIR, STACKABLE_CONFIG_MOUNT_DIR_NAME,
+    STACKABLE_LOG_CONFIG_MOUNT_DIR, STACKABLE_LOG_CONFIG_MOUNT_DIR_NAME, STACKABLE_LOG_DIR,
+    STACKABLE_LOG_DIR_NAME,
 };
 use snafu::{OptionExt, ResultExt, Snafu};
 use stackable_operator::{
@@ -79,7 +79,7 @@ pub enum Error {
     #[snafu(display("object defines no namespace"))]
     ObjectHasNoNamespace,
     #[snafu(display("object defines no metastore role"))]
-    NoMetaStoreRole,
+    NoServerRole,
     #[snafu(display("failed to calculate global service name"))]
     GlobalServiceNameNotFound,
     #[snafu(display("failed to calculate service name for role {rolegroup}"))]
@@ -213,7 +213,7 @@ pub async fn reconcile_hello(hello: Arc<HelloCluster>, ctx: Arc<Ctx>) -> Result<
                         PropertyNameKind::Cli,
                         PropertyNameKind::File(INDEX_HTML.to_string()),
                     ],
-                    hello.spec.server.clone().context(NoMetaStoreRoleSnafu)?,
+                    hello.spec.server.clone().context(NoServerRoleSnafu)?,
                 ),
             )]
             .into(),
@@ -225,7 +225,7 @@ pub async fn reconcile_hello(hello: Arc<HelloCluster>, ctx: Arc<Ctx>) -> Result<
     )
     .context(InvalidProductConfigSnafu)?;
 
-    let metastore_config = validated_config
+    let server_config = validated_config
         .get(&HelloRole::Server.to_string())
         .map(Cow::Borrowed)
         .unwrap_or_default();
@@ -255,11 +255,11 @@ pub async fn reconcile_hello(hello: Arc<HelloCluster>, ctx: Arc<Ctx>) -> Result<
         .await
         .context(ApplyRoleBindingSnafu)?;
 
-    let metastore_role_service = build_metastore_role_service(&hello, &resolved_product_image)?;
+    let server_role_service = build_server_role_service(&hello, &resolved_product_image)?;
 
     // we have to get the assigned ports
     cluster_resources
-        .add(client, metastore_role_service)
+        .add(client, server_role_service)
         .await
         .context(ApplyRoleServiceSnafu)?;
 
@@ -269,7 +269,7 @@ pub async fn reconcile_hello(hello: Arc<HelloCluster>, ctx: Arc<Ctx>) -> Result<
 
     let mut ss_cond_builder = StatefulSetConditionBuilder::default();
 
-    for (rolegroup_name, rolegroup_config) in metastore_config.iter() {
+    for (rolegroup_name, rolegroup_config) in server_config.iter() {
         let rolegroup = hello.server_rolegroup_ref(rolegroup_name);
 
         let config = hello
@@ -285,7 +285,7 @@ pub async fn reconcile_hello(hello: Arc<HelloCluster>, ctx: Arc<Ctx>) -> Result<
             &config,
             vector_aggregator_address.as_deref(),
         )?;
-        let rg_statefulset = build_metastore_rolegroup_statefulset(
+        let rg_statefulset = build_server_rolegroup_statefulset(
             &hello,
             &resolved_product_image,
             &rolegroup,
@@ -341,34 +341,32 @@ pub async fn reconcile_hello(hello: Arc<HelloCluster>, ctx: Arc<Ctx>) -> Result<
     Ok(Action::await_change())
 }
 
-/// The server-role service is the primary endpoint that should be used by clients that do not
-/// perform internal load balancing including targets outside of the cluster.
-pub fn build_metastore_role_service(
-    hive: &HelloCluster,
+pub fn build_server_role_service(
+    hello: &HelloCluster,
     resolved_product_image: &ResolvedProductImage,
 ) -> Result<Service> {
     let role_name = HelloRole::Server.to_string();
 
-    let role_svc_name = hive
+    let role_svc_name = hello
         .server_role_service_name()
         .context(GlobalServiceNameNotFoundSnafu)?;
     Ok(Service {
         metadata: ObjectMetaBuilder::new()
-            .name_and_namespace(hive)
+            .name_and_namespace(hello)
             .name(role_svc_name)
-            .ownerreference_from_resource(hive, None, Some(true))
+            .ownerreference_from_resource(hello, None, Some(true))
             .context(ObjectMissingMetadataForOwnerRefSnafu)?
             .with_recommended_labels(build_recommended_labels(
-                hive,
+                hello,
                 &resolved_product_image.app_version_label,
                 &role_name,
                 "global",
             ))
             .build(),
         spec: Some(ServiceSpec {
-            type_: Some(hive.spec.cluster_config.listener_class.k8s_service_type()),
+            type_: Some(hello.spec.cluster_config.listener_class.k8s_service_type()),
             ports: Some(service_ports()),
-            selector: Some(role_selector_labels(hive, APP_NAME, &role_name)),
+            selector: Some(role_selector_labels(hello, APP_NAME, &role_name)),
             ..ServiceSpec::default()
         }),
         status: None,
@@ -445,23 +443,22 @@ fn build_server_rolegroup_config_map(
 ///
 /// This is mostly useful for internal communication between peers, or for clients that perform client-side load balancing.
 fn build_rolegroup_service(
-    hive: &HelloCluster,
+    hello: &HelloCluster,
     resolved_product_image: &ResolvedProductImage,
     rolegroup: &RoleGroupRef<HelloCluster>,
 ) -> Result<Service> {
     Ok(Service {
         metadata: ObjectMetaBuilder::new()
-            .name_and_namespace(hive)
+            .name_and_namespace(hello)
             .name(&rolegroup.object_name())
-            .ownerreference_from_resource(hive, None, Some(true))
+            .ownerreference_from_resource(hello, None, Some(true))
             .context(ObjectMissingMetadataForOwnerRefSnafu)?
             .with_recommended_labels(build_recommended_labels(
-                hive,
+                hello,
                 &resolved_product_image.app_version_label,
                 &rolegroup.role,
                 &rolegroup.role_group,
             ))
-            .with_label("prometheus.io/scrape", "true")
             .build(),
         spec: Some(ServiceSpec {
             // Internal communication does not need to be exposed
@@ -469,7 +466,7 @@ fn build_rolegroup_service(
             cluster_ip: Some("None".to_string()),
             ports: Some(service_ports()),
             selector: Some(role_group_selector_labels(
-                hive,
+                hello,
                 APP_NAME,
                 &rolegroup.role,
                 &rolegroup.role_group,
@@ -485,7 +482,7 @@ fn build_rolegroup_service(
 ///
 /// The [`Pod`](`stackable_operator::k8s_openapi::api::core::v1::Pod`)s are accessible through the
 /// corresponding [`Service`] (from [`build_rolegroup_service`]).
-fn build_metastore_rolegroup_statefulset(
+fn build_server_rolegroup_statefulset(
     hive: &HelloCluster,
     resolved_product_image: &ResolvedProductImage,
     rolegroup_ref: &RoleGroupRef<HelloCluster>,
@@ -493,11 +490,12 @@ fn build_metastore_rolegroup_statefulset(
     merged_config: &ServerConfig,
     sa_name: &str,
 ) -> Result<StatefulSet> {
+    // TODO this function still needs to be checked
     let rolegroup = hive
         .spec
         .server
         .as_ref()
-        .context(NoMetaStoreRoleSnafu)?
+        .context(NoServerRoleSnafu)?
         .role_groups
         .get(&rolegroup_ref.role_group);
     let mut container_builder =
@@ -538,15 +536,14 @@ fn build_metastore_rolegroup_statefulset(
             STACKABLE_LOG_CONFIG_MOUNT_DIR_NAME,
             STACKABLE_LOG_CONFIG_MOUNT_DIR,
         )
-        .add_container_port(HIVE_PORT_NAME, HIVE_PORT.into())
-        .add_container_port(METRICS_PORT_NAME, METRICS_PORT.into())
+        .add_container_port(HTTP_PORT_NAME, HTTP_PORT.into())
         .resources(merged_config.resources.clone().into())
         .readiness_probe(Probe {
             initial_delay_seconds: Some(10),
             period_seconds: Some(10),
             failure_threshold: Some(5),
             tcp_socket: Some(TCPSocketAction {
-                port: IntOrString::String(HIVE_PORT_NAME.to_string()),
+                port: IntOrString::String(HTTP_PORT_NAME.to_string()),
                 ..TCPSocketAction::default()
             }),
             ..Probe::default()
@@ -555,7 +552,7 @@ fn build_metastore_rolegroup_statefulset(
             initial_delay_seconds: Some(30),
             period_seconds: Some(10),
             tcp_socket: Some(TCPSocketAction {
-                port: IntOrString::String(HIVE_PORT_NAME.to_string()),
+                port: IntOrString::String(HTTP_PORT_NAME.to_string()),
                 ..TCPSocketAction::default()
             }),
             ..Probe::default()
@@ -684,21 +681,13 @@ pub fn error_policy(_obj: Arc<HelloCluster>, _error: &Error, _ctx: Arc<Ctx>) -> 
     Action::requeue(Duration::from_secs(5))
 }
 
-pub fn service_ports() -> Vec<ServicePort> {
-    vec![
-        ServicePort {
-            name: Some(HIVE_PORT_NAME.to_string()),
-            port: HIVE_PORT.into(),
-            protocol: Some("TCP".to_string()),
-            ..ServicePort::default()
-        },
-        ServicePort {
-            name: Some(METRICS_PORT_NAME.to_string()),
-            port: METRICS_PORT.into(),
-            protocol: Some("TCP".to_string()),
-            ..ServicePort::default()
-        },
-    ]
+fn service_ports() -> Vec<ServicePort> {
+    vec![ServicePort {
+        name: Some(HTTP_PORT_NAME.to_string()),
+        port: HTTP_PORT.into(),
+        protocol: Some("TCP".to_string()),
+        ..ServicePort::default()
+    }]
 }
 
 /// Creates recommended `ObjectLabels` to be used in deployed resources
