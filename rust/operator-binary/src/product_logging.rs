@@ -1,16 +1,17 @@
 use crate::controller::MAX_HIVE_LOG_FILES_SIZE_IN_MIB;
 
-use snafu::{OptionExt, ResultExt, Snafu};
 use crate::crd::{Container, HelloworldCluster, HIVE_LOG4J2_PROPERTIES, STACKABLE_LOG_DIR};
+use snafu::{OptionExt, ResultExt, Snafu};
 use stackable_operator::{
     builder::ConfigMapBuilder,
     client::Client,
     k8s_openapi::api::core::v1::ConfigMap,
+    kube::ResourceExt,
     product_logging::{
         self,
         spec::{ContainerLogConfig, ContainerLogConfigChoice, Logging},
     },
-    role_utils::RoleGroupRef, kube::ResourceExt,
+    role_utils::RoleGroupRef,
 };
 
 #[derive(Snafu, Debug)]

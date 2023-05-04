@@ -10,7 +10,7 @@ use stackable_operator::{
         resources::{
             CpuLimitsFragment, MemoryLimitsFragment, NoRuntimeLimits, NoRuntimeLimitsFragment,
             PvcConfig, PvcConfigFragment, Resources, ResourcesFragment,
-        }
+        },
     },
     config::{fragment, fragment::Fragment, fragment::ValidationError, merge::Merge},
     k8s_openapi::apimachinery::pkg::api::resource::Quantity,
@@ -44,11 +44,8 @@ pub const HIVE_PORT: u16 = 9083;
 pub const METRICS_PORT_NAME: &str = "metrics";
 pub const METRICS_PORT: u16 = 9084;
 // certificates and trust stores
-pub const SYSTEM_TRUST_STORE: &str = "/etc/pki/java/cacerts";
-pub const SYSTEM_TRUST_STORE_PASSWORD: &str = "changeit";
 pub const STACKABLE_TRUST_STORE: &str = "/stackable/truststore.p12";
 pub const STACKABLE_TRUST_STORE_PASSWORD: &str = "changeit";
-pub const CERTS_DIR: &str = "/stackable/certificates/";
 // metastore opts
 pub const HIVE_METASTORE_HADOOP_OPTS: &str = "HIVE_METASTORE_HADOOP_OPTS";
 // heap
@@ -79,21 +76,21 @@ pub enum Error {
         schemars = "stackable_operator::schemars"
     )
 )]
-pub struct HelloworldClusterSpec {
+pub struct HelloClusterSpec {
     /// General Hive metastore cluster settings
-    pub cluster_config: HiveClusterConfig,
+    pub cluster_config: HelloClusterConfig,
     /// Cluster operations like pause reconciliation or cluster stop.
     #[serde(default)]
     pub cluster_operation: ClusterOperation,
     /// The Hive metastore image to use
     pub image: ProductImage,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub metastore: Option<Role<MetaStoreConfigFragment>>,
+    pub server: Option<Role<MetaStoreConfigFragment>>,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct HiveClusterConfig {
+pub struct HelloClusterConfig {
     /// Name of the Vector aggregator discovery ConfigMap.
     /// It must contain the key `ADDRESS` with the address of the Vector aggregator.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -138,12 +135,12 @@ impl CurrentlySupportedListenerClasses {
 
 #[derive(Display)]
 #[strum(serialize_all = "camelCase")]
-pub enum HiveRole {
-    #[strum(serialize = "metastore")]
-    MetaStore,
+pub enum HelloRole {
+    #[strum(serialize = "server")]
+    Server,
 }
 
-impl HiveRole {
+impl HelloRole {
     /// Returns the container start command for the metastore service.
     pub fn get_command(&self, auto_init_schema: bool) -> Vec<String> {
         if auto_init_schema {
@@ -247,7 +244,7 @@ impl MetaStoreConfig {
     pub const S3_SSL_ENABLED: &'static str = "fs.s3a.connection.ssl.enabled";
     pub const S3_PATH_STYLE_ACCESS: &'static str = "fs.s3a.path.style.access";
 
-    fn default_config(cluster_name: &str, role: &HiveRole) -> MetaStoreConfigFragment {
+    fn default_config(cluster_name: &str, role: &HelloRole) -> MetaStoreConfigFragment {
         MetaStoreConfigFragment {
             warehouse_dir: None,
             resources: ResourcesFragment {
@@ -312,17 +309,17 @@ impl Configuration for MetaStoreConfigFragment {
 
     fn compute_cli(
         &self,
-        hive: &Self::Configurable,
+        _hello: &Self::Configurable,
         _role_name: &str,
     ) -> Result<BTreeMap<String, Option<String>>, ConfigError> {
-        let mut result = BTreeMap::new();
+        let result = BTreeMap::new();
         // No CLI args necessary
         Ok(result)
     }
 
     fn compute_files(
         &self,
-        hive: &Self::Configurable,
+        _hello: &Self::Configurable,
         _role_name: &str,
         file: &str,
     ) -> Result<BTreeMap<String, Option<String>>, ConfigError> {
@@ -385,7 +382,7 @@ impl HelloworldCluster {
     ) -> RoleGroupRef<HelloworldCluster> {
         RoleGroupRef {
             cluster: ObjectRef::from_obj(self),
-            role: HiveRole::MetaStore.to_string(),
+            role: HelloRole::Server.to_string(),
             role_group: group_name.into(),
         }
     }
@@ -398,7 +395,7 @@ impl HelloworldCluster {
         let ns = self.metadata.namespace.clone().context(NoNamespaceSnafu)?;
         Ok(self
             .spec
-            .metastore
+            .server
             .iter()
             .flat_map(|role| &role.role_groups)
             // Order rolegroups consistently, to avoid spurious downstream rewrites
@@ -415,16 +412,16 @@ impl HelloworldCluster {
             }))
     }
 
-    pub fn get_role(&self, role: &HiveRole) -> Option<&Role<MetaStoreConfigFragment>> {
+    pub fn get_role(&self, role: &HelloRole) -> Option<&Role<MetaStoreConfigFragment>> {
         match role {
-            HiveRole::MetaStore => self.spec.metastore.as_ref(),
+            HelloRole::Server => self.spec.server.as_ref(),
         }
     }
 
     /// Retrieve and merge resource configs for role and role groups
     pub fn merged_config(
         &self,
-        role: &HiveRole,
+        role: &HelloRole,
         role_group: &str,
     ) -> Result<MetaStoreConfig, Error> {
         // Initialize the result with all default values as baseline

@@ -1,7 +1,7 @@
 use crate::controller::build_recommended_labels;
 
+use crate::crd::{HelloRole, HelloworldCluster, ServiceType, HIVE_PORT, HIVE_PORT_NAME};
 use snafu::{OptionExt, ResultExt, Snafu};
-use crate::crd::{HelloworldCluster, HiveRole, ServiceType, HIVE_PORT, HIVE_PORT_NAME};
 use stackable_operator::commons::product_image_selection::ResolvedProductImage;
 use stackable_operator::{
     builder::{ConfigMapBuilder, ObjectMetaBuilder},
@@ -133,7 +133,7 @@ fn build_discovery_configmap(
                 .with_recommended_labels(build_recommended_labels(
                     hive,
                     &resolved_product_image.app_version_label,
-                    &HiveRole::MetaStore.to_string(),
+                    &HelloRole::Server.to_string(),
                     "discovery",
                 ))
                 .build(),
@@ -146,7 +146,9 @@ fn build_discovery_configmap(
 }
 
 /// Lists all Pods FQDNs expected to host the [`HiveCluster`]
-fn pod_hosts(hive: &HelloworldCluster) -> Result<impl IntoIterator<Item = (String, u16)> + '_, Error> {
+fn pod_hosts(
+    hive: &HelloworldCluster,
+) -> Result<impl IntoIterator<Item = (String, u16)> + '_, Error> {
     Ok(hive
         .pods()
         .context(ExpectedPodsSnafu)?

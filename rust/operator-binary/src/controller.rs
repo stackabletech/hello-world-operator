@@ -2,35 +2,29 @@
 use crate::product_logging::{extend_role_group_config_map, resolve_vector_aggregator_address};
 use crate::{discovery, OPERATOR_NAME};
 
+use crate::crd::{
+    Container, HelloRole, HelloworldCluster, HelloworldClusterStatus, MetaStoreConfig, APP_NAME,
+    HADOOP_HEAPSIZE, HIVE_ENV_SH, HIVE_PORT, HIVE_PORT_NAME, HIVE_SITE_XML, JVM_HEAP_FACTOR,
+    METRICS_PORT, METRICS_PORT_NAME, STACKABLE_CONFIG_DIR, STACKABLE_CONFIG_DIR_NAME,
+    STACKABLE_CONFIG_MOUNT_DIR, STACKABLE_CONFIG_MOUNT_DIR_NAME, STACKABLE_LOG_CONFIG_MOUNT_DIR,
+    STACKABLE_LOG_CONFIG_MOUNT_DIR_NAME, STACKABLE_LOG_DIR, STACKABLE_LOG_DIR_NAME,
+};
 use fnv::FnvHasher;
 use snafu::{OptionExt, ResultExt, Snafu};
-use crate::crd::{
-    Container, HelloworldCluster, HelloworldClusterStatus, HiveRole, MetaStoreConfig, APP_NAME,
-    CERTS_DIR, HADOOP_HEAPSIZE, HIVE_ENV_SH, HIVE_PORT, HIVE_PORT_NAME, HIVE_SITE_XML,
-    JVM_HEAP_FACTOR, METRICS_PORT, METRICS_PORT_NAME, STACKABLE_CONFIG_DIR,
-    STACKABLE_CONFIG_DIR_NAME, STACKABLE_CONFIG_MOUNT_DIR, STACKABLE_CONFIG_MOUNT_DIR_NAME,
-    STACKABLE_LOG_CONFIG_MOUNT_DIR, STACKABLE_LOG_CONFIG_MOUNT_DIR_NAME, STACKABLE_LOG_DIR,
-    STACKABLE_LOG_DIR_NAME,
-};
 use stackable_operator::memory::MemoryQuantity;
 use stackable_operator::{
     builder::{
         ConfigMapBuilder, ContainerBuilder, ObjectMetaBuilder, PodBuilder,
-        PodSecurityContextBuilder, SecretOperatorVolumeSourceBuilder, VolumeBuilder,
+        PodSecurityContextBuilder,
     },
     cluster_resources::{ClusterResourceApplyStrategy, ClusterResources},
-    commons::{
-        product_image_selection::ResolvedProductImage,
-        rbac::build_rbac_resources,
-        s3::{S3AccessStyle, S3ConnectionSpec},
-        tls::{CaCert, TlsVerification},
-    },
+    commons::{product_image_selection::ResolvedProductImage, rbac::build_rbac_resources},
     k8s_openapi::{
         api::{
             apps::v1::{StatefulSet, StatefulSetSpec},
             core::v1::{
                 ConfigMap, ConfigMapVolumeSource, EmptyDirVolumeSource, Probe, Service,
-                ServicePort, ServiceSpec, TCPSocketAction, Volume, VolumeMount,
+                ServicePort, ServiceSpec, TCPSocketAction, Volume,
             },
         },
         apimachinery::pkg::{
@@ -60,7 +54,6 @@ use std::{
     borrow::Cow,
     collections::{BTreeMap, HashMap},
     hash::Hasher,
-    str::FromStr,
     sync::Arc,
     time::Duration,
 };
@@ -219,7 +212,7 @@ pub async fn reconcile_hive(hive: Arc<HelloworldCluster>, ctx: Arc<Ctx>) -> Resu
         &transform_all_roles_to_config(
             hive.as_ref(),
             [(
-                HiveRole::MetaStore.to_string(),
+                HelloRole::Server.to_string(),
                 (
                     vec![
                         PropertyNameKind::Env,
@@ -227,7 +220,7 @@ pub async fn reconcile_hive(hive: Arc<HelloworldCluster>, ctx: Arc<Ctx>) -> Resu
                         PropertyNameKind::File(HIVE_SITE_XML.to_string()),
                         PropertyNameKind::File(HIVE_ENV_SH.to_string()),
                     ],
-                    hive.spec.metastore.clone().context(NoMetaStoreRoleSnafu)?,
+                    hive.spec.server.clone().context(NoMetaStoreRoleSnafu)?,
                 ),
             )]
             .into(),
@@ -240,7 +233,7 @@ pub async fn reconcile_hive(hive: Arc<HelloworldCluster>, ctx: Arc<Ctx>) -> Resu
     .context(InvalidProductConfigSnafu)?;
 
     let metastore_config = validated_config
-        .get(&HiveRole::MetaStore.to_string())
+        .get(&HelloRole::Server.to_string())
         .map(Cow::Borrowed)
         .unwrap_or_default();
 
@@ -287,7 +280,7 @@ pub async fn reconcile_hive(hive: Arc<HelloworldCluster>, ctx: Arc<Ctx>) -> Resu
         let rolegroup = hive.metastore_rolegroup_ref(rolegroup_name);
 
         let config = hive
-            .merged_config(&HiveRole::MetaStore, &rolegroup.role_group)
+            .merged_config(&HelloRole::Server, &rolegroup.role_group)
             .context(FailedToResolveResourceConfigSnafu)?;
 
         let rg_service = build_rolegroup_service(&hive, &resolved_product_image, &rolegroup)?;
@@ -387,7 +380,7 @@ pub fn build_metastore_role_service(
     hive: &HelloworldCluster,
     resolved_product_image: &ResolvedProductImage,
 ) -> Result<Service> {
-    let role_name = HiveRole::MetaStore.to_string();
+    let role_name = HelloRole::Server.to_string();
 
     let role_svc_name = hive
         .metastore_role_service_name()
@@ -574,7 +567,7 @@ fn build_metastore_rolegroup_statefulset(
 ) -> Result<StatefulSet> {
     let rolegroup = hive
         .spec
-        .metastore
+        .server
         .as_ref()
         .context(NoMetaStoreRoleSnafu)?
         .role_groups

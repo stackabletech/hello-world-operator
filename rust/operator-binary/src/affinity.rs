@@ -3,9 +3,9 @@ use stackable_operator::{
     k8s_openapi::api::core::v1::PodAntiAffinity,
 };
 
-use crate::{crd::HiveRole, APP_NAME};
+use crate::{crd::HelloRole, APP_NAME};
 
-pub fn get_affinity(cluster_name: &str, role: &HiveRole) -> StackableAffinityFragment {
+pub fn get_affinity(cluster_name: &str, role: &HelloRole) -> StackableAffinityFragment {
     StackableAffinityFragment {
         pod_affinity: None,
         pod_anti_affinity: Some(PodAntiAffinity {
@@ -60,7 +60,7 @@ mod tests {
                 replicas: 1
         "#;
         let hive: HelloworldCluster = serde_yaml::from_str(input).expect("illegal test input");
-        let merged_config = hive.merged_config(&HiveRole::MetaStore, "default").unwrap();
+        let merged_config = hive.merged_config(&HelloRole::Server, "default").unwrap();
 
         assert_eq!(
             merged_config.affinity,
@@ -131,7 +131,7 @@ mod tests {
                         - antarctica-west1
         "#;
         let hive: HelloworldCluster = serde_yaml::from_str(input).expect("illegal test input");
-        let merged_config = hive.merged_config(&HiveRole::MetaStore, "default").unwrap();
+        let merged_config = hive.merged_config(&HelloRole::Server, "default").unwrap();
 
         assert_eq!(
             merged_config.affinity,

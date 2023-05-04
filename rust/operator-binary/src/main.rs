@@ -7,8 +7,8 @@ mod product_logging;
 use crate::controller::HIVE_CONTROLLER_NAME;
 
 use clap::{crate_description, crate_version, Parser};
-use futures::stream::StreamExt;
 use crd::{HelloworldCluster, APP_NAME};
+use futures::stream::StreamExt;
 use stackable_operator::{
     cli::{Command, ProductOperatorRun},
     k8s_openapi::api::{
