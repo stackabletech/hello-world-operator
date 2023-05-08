@@ -1,0 +1,11 @@
+These Helm charts and manifests are automatically generated.
+Please do not edit anything except for files explicitly mentioned below in this
+directory manually.
+
+The following files are ok to edit:
+
+- helm/hello-world-operator/templates/roles.yaml
+- helm/hello-world-operator/values.yaml
+
+The details are in-motion but check this repository for a few details:
+<https://github.com/stackabletech/operator-templating>
