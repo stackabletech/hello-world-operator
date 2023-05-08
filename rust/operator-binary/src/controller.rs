@@ -13,8 +13,7 @@ use crate::crd::{
 use snafu::{OptionExt, ResultExt, Snafu};
 use stackable_operator::{
     builder::{
-        ConfigMapBuilder, ContainerBuilder, ObjectMetaBuilder, PodBuilder,
-        PodSecurityContextBuilder,
+        ConfigMapBuilder, ContainerBuilder, ObjectMetaBuilder, PodBuilder
     },
     cluster_resources::{ClusterResourceApplyStrategy, ClusterResources},
     commons::{product_image_selection::ResolvedProductImage, rbac::build_rbac_resources},
@@ -57,8 +56,6 @@ use std::{
 use strum::EnumDiscriminants;
 use tracing::warn;
 
-/// Used as runAsUser in the pod security context. This is specified in the kafka image file
-pub const HELLO_UID: i64 = 1000;
 pub const HELLO_CONTROLLER_NAME: &str = "hellocluster";
 const DOCKER_IMAGE_BASE_NAME: &str = "hello";
 
