@@ -11,29 +11,11 @@
 
 [Documentation](https://docs.stackable.tech/hello-world/stable/index.html) | [Stackable Data Platform](https://stackable.tech/) | [Platform Docs](https://docs.stackable.tech/) | [Discussions](https://github.com/orgs/stackabletech/discussions) | [Discord](https://discord.gg/7kZ3BNnCAF)
 
-This is a an example Kubernetes operator that runs a simple nginx instance.
+This is a an example Kubernetes operator that runs a simple nginx instance. It serves as documentation of how a Stackable Operator works and it can also be a good starting point for building a new Operator.
 
-It is part of the Stackable Data Platform, a curated selection of the best open source data apps like Kafka, Druid, Trino or Spark, [all](#other-operators) working together seamlessly. Based on Kubernetes, it runs everywhere – [on prem or in the cloud](#supported-platforms).
+Unlike the other stackable Operators, this one is not installable with Helm or stackablectl, as it is only for educational purposes.
 
-## Installation
-
-You can install the operator using [stackablectl or helm](https://docs.stackable.tech/hello-world/stable/getting_started/installation.html).
-
-Read on to get started with it, or see it in action in one of our [demos](https://stackable.tech/en/demos/).
-
-## Getting Started
-
-You can follow this [tutorial](https://docs.stackable.tech/hello-world/stable/getting_started/first_steps.html).
-
-## Documentation
-
-The stable documentation for this operator can be found [here](https://docs.stackable.tech/hello-world/stable/index.html).
-If you are interested in the most recent state of this repository, check out the [nightly docs](https://docs.stackable.tech/hello-world/nightly/index.html) instead.
-
-The documentation for all Stackable products can be found at [docs.stackable.tech](https://docs.stackable.tech).
-
-If you have a question about the Stackable Data Platform contact us via our [homepage](https://stackable.tech/) or ask a public questions in our [Discussions forum](https://github.com/orgs/stackabletech/discussions).
-
+... TODO Steps to get it to run etc.
 
 ## About The Stackable Data Platform
 
