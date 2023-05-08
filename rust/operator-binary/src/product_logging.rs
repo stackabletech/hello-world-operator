@@ -84,14 +84,14 @@ pub fn extend_role_group_config_map(
 ) -> Result<()> {
     if let Some(ContainerLogConfig {
         choice: Some(ContainerLogConfigChoice::Automatic(log_config)),
-    }) = logging.containers.get(&Container::Hive)
+    }) = logging.containers.get(&Container::Hello)
     {
         cm_builder.add_data(
             HIVE_LOG4J2_PROPERTIES,
             product_logging::framework::create_log4j2_config(
                 &format!(
                     "{STACKABLE_LOG_DIR}/{container}",
-                    container = Container::Hive
+                    container = Container::Hello
                 ),
                 HIVE_LOG_FILE,
                 MAX_HIVE_LOG_FILES_SIZE_IN_MIB,

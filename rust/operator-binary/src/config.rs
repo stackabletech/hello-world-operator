@@ -14,8 +14,7 @@ pub fn generate_index_html(recipient: &str, color: &str) -> String {
     </head>
     <body>
     <h1>Hello {recipient}!</h1>
-    <p>If you see this page, the nginx web server is successfully installed and
-    working. Further configuration is required.</p>
+    <p>If you see this page, your HelloCluster was deployed successfully.</p>
     </body>
     </html>
     "}

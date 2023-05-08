@@ -150,7 +150,7 @@ pub enum HelloRole {
 #[serde(rename_all = "kebab-case")]
 #[strum(serialize_all = "kebab-case")]
 pub enum Container {
-    Hive,
+    Hello,
     Vector,
 }
 
@@ -188,9 +188,6 @@ pub struct ServerStorageConfig {
     serde(rename_all = "camelCase")
 )]
 pub struct ServerConfig {
-    /// The location of default database for the Hive warehouse.
-    /// Maps to the `hive.metastore.warehouse.dir` setting.
-    pub warehouse_dir: Option<String>,
     #[fragment_attrs(serde(default))]
     pub resources: Resources<ServerStorageConfig, NoRuntimeLimits>,
     #[fragment_attrs(serde(default))]
@@ -202,7 +199,6 @@ pub struct ServerConfig {
 impl ServerConfig {
     fn default_config(cluster_name: &str, role: &HelloRole) -> ServerConfigFragment {
         ServerConfigFragment {
-            warehouse_dir: None,
             resources: ResourcesFragment {
                 cpu: CpuLimitsFragment {
                     min: Some(Quantity("200m".to_owned())),

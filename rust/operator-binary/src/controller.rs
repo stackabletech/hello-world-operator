@@ -137,21 +137,10 @@ pub enum Error {
     ResolveS3Connection {
         source: stackable_operator::error::Error,
     },
-    #[snafu(display(
-        "Hive does not support skipping the verification of the tls enabled S3 server"
-    ))]
-    S3TlsNoVerificationNotSupported,
     #[snafu(display("failed to resolve and merge resource config for role and role group"))]
     FailedToResolveResourceConfig { source: crate::crd::Error },
-    #[snafu(display("invalid java heap config - missing default or value in crd?"))]
-    InvalidJavaHeapConfig,
-    #[snafu(display("failed to convert java heap config to unit [{unit}]"))]
-    FailedToConvertJavaHeap {
-        source: stackable_operator::error::Error,
-        unit: String,
-    },
-    #[snafu(display("failed to create hive container [{name}]"))]
-    FailedToCreateHiveContainer {
+    #[snafu(display("failed to create hello container [{name}]"))]
+    FailedToCreateHelloContainer {
         source: stackable_operator::error::Error,
         name: String,
     },
@@ -483,7 +472,7 @@ fn build_rolegroup_service(
 /// The [`Pod`](`stackable_operator::k8s_openapi::api::core::v1::Pod`)s are accessible through the
 /// corresponding [`Service`] (from [`build_rolegroup_service`]).
 fn build_server_rolegroup_statefulset(
-    hive: &HelloCluster,
+    hello: &HelloCluster,
     resolved_product_image: &ResolvedProductImage,
     rolegroup_ref: &RoleGroupRef<HelloCluster>,
     metastore_config: &HashMap<PropertyNameKind, BTreeMap<String, String>>,
@@ -491,7 +480,7 @@ fn build_server_rolegroup_statefulset(
     sa_name: &str,
 ) -> Result<StatefulSet> {
     // TODO this function still needs to be checked
-    let rolegroup = hive
+    let rolegroup = hello
         .spec
         .servers
         .as_ref()
@@ -499,7 +488,7 @@ fn build_server_rolegroup_statefulset(
         .role_groups
         .get(&rolegroup_ref.role_group);
     let mut container_builder =
-        ContainerBuilder::new(APP_NAME).context(FailedToCreateHiveContainerSnafu {
+        ContainerBuilder::new(APP_NAME).context(FailedToCreateHelloContainerSnafu {
             name: APP_NAME.to_string(),
         })?;
 
@@ -521,16 +510,11 @@ fn build_server_rolegroup_statefulset(
 
     let mut pod_builder = PodBuilder::new();
 
-    // No custom command used. You can set it on the container_builder with .command
-    let container_hive = container_builder
+    let container_hello = container_builder
         .command(vec![
-            "bash".to_string(),
+            "nginx".to_string(),
             "-c".to_string(),
-            "--".to_string()
-        ])
-        .args(vec![
-            // "while true; do sleep 30; done;".to_string()
-            format!("nginx -c {}/{} || sleep 300", STACKABLE_CONFIG_MOUNT_DIR, "nginx.conf")
+            format!("{}/{}", STACKABLE_CONFIG_MOUNT_DIR, NGINX_CONF)
         ])
         .image_from_product_image(resolved_product_image)
         .add_volume_mount(STACKABLE_CONFIG_DIR_NAME, STACKABLE_CONFIG_DIR)
@@ -566,14 +550,14 @@ fn build_server_rolegroup_statefulset(
     pod_builder
         .metadata_builder(|m| {
             m.with_recommended_labels(build_recommended_labels(
-                hive,
+                hello,
                 &resolved_product_image.app_version_label,
                 &rolegroup_ref.role,
                 &rolegroup_ref.role_group,
             ))
         })
         .image_pull_secrets_from_product_image(resolved_product_image)
-        .add_container(container_hive)
+        .add_container(container_hello)
         .add_volume(Volume {
             name: STACKABLE_CONFIG_DIR_NAME.to_string(),
             empty_dir: Some(EmptyDirVolumeSource {
@@ -614,7 +598,7 @@ fn build_server_rolegroup_statefulset(
             Some(ContainerLogConfigChoice::Custom(CustomContainerLogConfig {
                 custom: ConfigMapLogConfig { config_map },
             })),
-    }) = merged_config.logging.containers.get(&Container::Hive)
+    }) = merged_config.logging.containers.get(&Container::Hello)
     {
         pod_builder.add_volume(Volume {
             name: STACKABLE_LOG_CONFIG_MOUNT_DIR_NAME.to_string(),
@@ -646,12 +630,12 @@ fn build_server_rolegroup_statefulset(
 
     Ok(StatefulSet {
         metadata: ObjectMetaBuilder::new()
-            .name_and_namespace(hive)
+            .name_and_namespace(hello)
             .name(&rolegroup_ref.object_name())
-            .ownerreference_from_resource(hive, None, Some(true))
+            .ownerreference_from_resource(hello, None, Some(true))
             .context(ObjectMissingMetadataForOwnerRefSnafu)?
             .with_recommended_labels(build_recommended_labels(
-                hive,
+                hello,
                 &resolved_product_image.app_version_label,
                 &rolegroup_ref.role,
                 &rolegroup_ref.role_group,
@@ -662,7 +646,7 @@ fn build_server_rolegroup_statefulset(
             replicas: rolegroup.and_then(|rg| rg.replicas).map(i32::from),
             selector: LabelSelector {
                 match_labels: Some(role_group_selector_labels(
-                    hive,
+                    hello,
                     APP_NAME,
                     &rolegroup_ref.role,
                     &rolegroup_ref.role_group,
