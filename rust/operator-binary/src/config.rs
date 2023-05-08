@@ -1,4 +1,4 @@
-use indoc::{indoc, formatdoc};
+use indoc::{formatdoc, indoc};
 
 pub fn generate_index_html(recipient: &str, color: &str) -> String {
     formatdoc! {"
@@ -60,5 +60,6 @@ pub fn generate_nginx_conf() -> String {
             }
         }
     }
-    "}.to_string()
+    "}
+    .to_string()
 }

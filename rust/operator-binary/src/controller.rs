@@ -5,16 +5,14 @@ use crate::OPERATOR_NAME;
 
 use crate::crd::{
     Container, HelloCluster, HelloClusterStatus, HelloRole, ServerConfig, APP_NAME, HELLO_COLOR,
-    HELLO_RECIPIENT, HTTP_PORT, HTTP_PORT_NAME, INDEX_HTML, STACKABLE_CONFIG_DIR,
+    HELLO_RECIPIENT, HTTP_PORT, HTTP_PORT_NAME, INDEX_HTML, NGINX_CONF, STACKABLE_CONFIG_DIR,
     STACKABLE_CONFIG_DIR_NAME, STACKABLE_CONFIG_MOUNT_DIR, STACKABLE_CONFIG_MOUNT_DIR_NAME,
     STACKABLE_LOG_CONFIG_MOUNT_DIR, STACKABLE_LOG_CONFIG_MOUNT_DIR_NAME, STACKABLE_LOG_DIR,
-    STACKABLE_LOG_DIR_NAME, NGINX_CONF,
+    STACKABLE_LOG_DIR_NAME,
 };
 use snafu::{OptionExt, ResultExt, Snafu};
 use stackable_operator::{
-    builder::{
-        ConfigMapBuilder, ContainerBuilder, ObjectMetaBuilder, PodBuilder
-    },
+    builder::{ConfigMapBuilder, ContainerBuilder, ObjectMetaBuilder, PodBuilder},
     cluster_resources::{ClusterResourceApplyStrategy, ClusterResources},
     commons::{product_image_selection::ResolvedProductImage, rbac::build_rbac_resources},
     k8s_openapi::{
@@ -514,7 +512,7 @@ fn build_server_rolegroup_statefulset(
         .command(vec![
             "nginx".to_string(),
             "-c".to_string(),
-            format!("{}/{}", STACKABLE_CONFIG_MOUNT_DIR, NGINX_CONF)
+            format!("{}/{}", STACKABLE_CONFIG_MOUNT_DIR, NGINX_CONF),
         ])
         .image_from_product_image(resolved_product_image)
         .add_volume_mount(STACKABLE_CONFIG_DIR_NAME, STACKABLE_CONFIG_DIR)
