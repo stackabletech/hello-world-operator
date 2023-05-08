@@ -41,7 +41,7 @@ pub const NGINX_CONF: &str = "nginx.conf";
 pub const HELLO_RECIPIENT: &str = "RECIPIENT";
 pub const HELLO_COLOR: &str = "COLOR";
 // default ports
-pub const HTTP_PORT_NAME: &str = "hive";
+pub const HTTP_PORT_NAME: &str = "http";
 pub const HTTP_PORT: u16 = 8080;
 
 #[derive(Snafu, Debug)]
@@ -74,7 +74,7 @@ pub struct HelloClusterSpec {
     /// Cluster operations like pause reconciliation or cluster stop.
     #[serde(default)]
     pub cluster_operation: ClusterOperation,
-    /// The Hive metastore image to use
+    /// The image to use. In this example this will be an nginx image
     pub image: ProductImage,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub servers: Option<Role<ServerConfigFragment>>,
@@ -241,7 +241,7 @@ impl Configuration for ServerConfigFragment {
 
     fn compute_env(
         &self,
-        _hive: &Self::Configurable,
+        _hello: &Self::Configurable,
         _role_name: &str,
     ) -> Result<BTreeMap<String, Option<String>>, ConfigError> {
         let result = BTreeMap::new();
