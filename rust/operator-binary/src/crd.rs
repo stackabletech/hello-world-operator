@@ -36,12 +36,13 @@ pub const STACKABLE_LOG_CONFIG_MOUNT_DIR_NAME: &str = "log-config-mount";
 // config file names
 pub const INDEX_HTML: &str = "index.html";
 pub const HIVE_LOG4J2_PROPERTIES: &str = "hive-log4j2.properties";
+pub const NGINX_CONF: &str = "nginx.conf";
 // HTML file keys
 pub const HELLO_RECIPIENT: &str = "RECIPIENT";
 pub const HELLO_COLOR: &str = "COLOR";
 // default ports
 pub const HTTP_PORT_NAME: &str = "hive";
-pub const HTTP_PORT: u16 = 80;
+pub const HTTP_PORT: u16 = 8080;
 
 #[derive(Snafu, Debug)]
 pub enum Error {

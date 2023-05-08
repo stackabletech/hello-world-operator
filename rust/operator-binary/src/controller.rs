@@ -1,4 +1,5 @@
 //! Ensures that `Pod`s are configured and running for each [`HelloCluster`]
+use crate::config::{generate_index_html, generate_nginx_conf};
 use crate::product_logging::{extend_role_group_config_map, resolve_vector_aggregator_address};
 use crate::OPERATOR_NAME;
 
@@ -7,7 +8,7 @@ use crate::crd::{
     HELLO_RECIPIENT, HTTP_PORT, HTTP_PORT_NAME, INDEX_HTML, STACKABLE_CONFIG_DIR,
     STACKABLE_CONFIG_DIR_NAME, STACKABLE_CONFIG_MOUNT_DIR, STACKABLE_CONFIG_MOUNT_DIR_NAME,
     STACKABLE_LOG_CONFIG_MOUNT_DIR, STACKABLE_LOG_CONFIG_MOUNT_DIR_NAME, STACKABLE_LOG_DIR,
-    STACKABLE_LOG_DIR_NAME,
+    STACKABLE_LOG_DIR_NAME, NGINX_CONF,
 };
 use snafu::{OptionExt, ResultExt, Snafu};
 use stackable_operator::{
@@ -391,13 +392,14 @@ fn build_server_rolegroup_config_map(
                     .get(HELLO_RECIPIENT)
                     .map(|x| x.as_str())
                     .unwrap_or("World");
-                let _color = config
+                let color = config
                     .get(HELLO_COLOR)
                     .map(|x| x.as_str())
                     .unwrap_or("#000000");
 
-                // TODO make a proper HTML file with the color as well
-                hello_index_html = format!("Hello {}!", recipient);
+                // TODO maybe don't set these defaults in here ^
+
+                hello_index_html = generate_index_html(recipient, color);
             }
             _ => {}
         }
@@ -420,7 +422,8 @@ fn build_server_rolegroup_config_map(
                 ))
                 .build(),
         )
-        .add_data(INDEX_HTML, hello_index_html);
+        .add_data(INDEX_HTML, hello_index_html)
+        .add_data(NGINX_CONF, generate_nginx_conf());
 
     extend_role_group_config_map(
         rolegroup,
@@ -523,6 +526,15 @@ fn build_server_rolegroup_statefulset(
 
     // No custom command used. You can set it on the container_builder with .command
     let container_hive = container_builder
+        .command(vec![
+            "bash".to_string(),
+            "-c".to_string(),
+            "--".to_string()
+        ])
+        .args(vec![
+            // "while true; do sleep 30; done;".to_string()
+            format!("nginx -c {}/{} || sleep 300", STACKABLE_CONFIG_MOUNT_DIR, "nginx.conf")
+        ])
         .image_from_product_image(resolved_product_image)
         .add_volume_mount(STACKABLE_CONFIG_DIR_NAME, STACKABLE_CONFIG_DIR)
         .add_volume_mount(STACKABLE_CONFIG_MOUNT_DIR_NAME, STACKABLE_CONFIG_MOUNT_DIR)
