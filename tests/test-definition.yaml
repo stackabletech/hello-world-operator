@@ -1,0 +1,13 @@
+---
+dimensions:
+  - name: potentially-some-dependency
+    values:
+      - "12.1.5"
+      - "13.1.4"
+  - name: use-feature
+    values:
+      - "true"
+      - "false"
+tests:
+  - name: smoke
+    dimensions: {}  # no dependencies in this test

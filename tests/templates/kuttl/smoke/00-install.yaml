@@ -7,7 +7,7 @@ spec:
   image:
     custom: docker.io/library/nginx:1.23.4
     productVersion: 0.1.0
-  recipient: "Stackable"
+  recipient: "Bob"
   color: "blue"
   clusterConfig:
     listenerClass: external-unstable
