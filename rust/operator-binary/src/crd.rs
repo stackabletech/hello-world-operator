@@ -41,7 +41,7 @@ pub const HELLO_RECIPIENT: &str = "RECIPIENT";
 pub const HELLO_COLOR: &str = "COLOR";
 // default ports
 pub const HTTP_PORT_NAME: &str = "hive";
-pub const HTTP_PORT: u16 = 8080;
+pub const HTTP_PORT: u16 = 80;
 
 #[derive(Snafu, Debug)]
 pub enum Error {
@@ -76,7 +76,7 @@ pub struct HelloClusterSpec {
     /// The Hive metastore image to use
     pub image: ProductImage,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub server: Option<Role<ServerConfigFragment>>,
+    pub servers: Option<Role<ServerConfigFragment>>,
     pub recipient: String,
     pub color: String,
 }
@@ -330,7 +330,7 @@ impl HelloCluster {
         let ns = self.metadata.namespace.clone().context(NoNamespaceSnafu)?;
         Ok(self
             .spec
-            .server
+            .servers
             .iter()
             .flat_map(|role| &role.role_groups)
             // Order rolegroups consistently, to avoid spurious downstream rewrites
@@ -349,7 +349,7 @@ impl HelloCluster {
 
     pub fn get_role(&self, role: &HelloRole) -> Option<&Role<ServerConfigFragment>> {
         match role {
-            HelloRole::Server => self.spec.server.as_ref(),
+            HelloRole::Server => self.spec.servers.as_ref(),
         }
     }
 

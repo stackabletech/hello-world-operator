@@ -5,3 +5,8 @@ metrics are not configured
 
 
 https://hub.docker.com/_/nginx
+
+
+TODO:
+- check the controller.rs file to the end
+- fix the tests

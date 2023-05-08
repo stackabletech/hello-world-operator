@@ -213,7 +213,7 @@ pub async fn reconcile_hello(hello: Arc<HelloCluster>, ctx: Arc<Ctx>) -> Result<
                         PropertyNameKind::Cli,
                         PropertyNameKind::File(INDEX_HTML.to_string()),
                     ],
-                    hello.spec.server.clone().context(NoServerRoleSnafu)?,
+                    hello.spec.servers.clone().context(NoServerRoleSnafu)?,
                 ),
             )]
             .into(),
@@ -493,7 +493,7 @@ fn build_server_rolegroup_statefulset(
     // TODO this function still needs to be checked
     let rolegroup = hive
         .spec
-        .server
+        .servers
         .as_ref()
         .context(NoServerRoleSnafu)?
         .role_groups
@@ -521,14 +521,9 @@ fn build_server_rolegroup_statefulset(
 
     let mut pod_builder = PodBuilder::new();
 
+    // No custom command used. You can set it on the container_builder with .command
     let container_hive = container_builder
         .image_from_product_image(resolved_product_image)
-        .command(vec![
-            "/bin/bash".to_string(),
-            "-c".to_string(),
-            "-euo".to_string(),
-            "pipefail".to_string(),
-        ])
         .add_volume_mount(STACKABLE_CONFIG_DIR_NAME, STACKABLE_CONFIG_DIR)
         .add_volume_mount(STACKABLE_CONFIG_MOUNT_DIR_NAME, STACKABLE_CONFIG_MOUNT_DIR)
         .add_volume_mount(STACKABLE_LOG_DIR_NAME, STACKABLE_LOG_DIR)
@@ -595,14 +590,15 @@ fn build_server_rolegroup_statefulset(
             ..Volume::default()
         })
         .affinity(&merged_config.affinity)
-        .service_account_name(sa_name)
-        .security_context(
-            PodSecurityContextBuilder::new()
-                .run_as_user(HELLO_UID)
-                .run_as_group(0)
-                .fs_group(1000)
-                .build(),
-        );
+        .service_account_name(sa_name);
+
+    // .security_context(
+    //     PodSecurityContextBuilder::new()
+    //         .run_as_user(HELLO_UID)
+    //         .run_as_group(0)
+    //         .fs_group(1000)
+    //         .build(),
+    // )
 
     if let Some(ContainerLogConfig {
         choice:

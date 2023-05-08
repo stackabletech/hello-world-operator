@@ -1,0 +1,17 @@
+---
+apiVersion: hello.stackable.tech/v1alpha1
+kind: HelloCluster
+metadata:
+  name: hello-world
+spec:
+  image:
+    custom: docker.io/library/nginx:1.23.4
+    productVersion: 0.1.0
+  recipient: "Felix"
+  color: "#ffff00"
+  clusterConfig:
+    listenerClass: external-unstable
+  servers:
+    roleGroups:
+      default:
+        replicas: 1
