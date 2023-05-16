@@ -1,6 +1,6 @@
 # Hello World App
 
-This is a demo application that the operator starts up
+This is a demo application that the operator starts up. It opens an HTTP port and displays a configurable greeting.
 
 ## Building & Running
 

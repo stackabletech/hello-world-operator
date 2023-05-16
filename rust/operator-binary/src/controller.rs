@@ -56,11 +56,11 @@ use tracing::warn;
 pub const HELLO_CONTROLLER_NAME: &str = "hellocluster";
 const DOCKER_IMAGE_BASE_NAME: &str = "hello";
 
-pub const MAX_HIVE_LOG_FILES_SIZE_IN_MIB: u32 = 10;
+pub const MAX_LOG_FILES_SIZE_IN_MIB: u32 = 10;
 
 const OVERFLOW_BUFFER_ON_LOG_VOLUME_IN_MIB: u32 = 1;
 const LOG_VOLUME_SIZE_IN_MIB: u32 =
-    MAX_HIVE_LOG_FILES_SIZE_IN_MIB + OVERFLOW_BUFFER_ON_LOG_VOLUME_IN_MIB;
+    MAX_LOG_FILES_SIZE_IN_MIB + OVERFLOW_BUFFER_ON_LOG_VOLUME_IN_MIB;
 
 pub struct Ctx {
     pub client: stackable_operator::client::Client,

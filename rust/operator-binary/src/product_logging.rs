@@ -1,6 +1,6 @@
-use crate::controller::MAX_HIVE_LOG_FILES_SIZE_IN_MIB;
+use crate::controller::MAX_LOG_FILES_SIZE_IN_MIB;
 
-use crate::crd::{Container, HelloCluster, HIVE_LOG4J2_PROPERTIES, STACKABLE_LOG_DIR};
+use crate::crd::{Container, HelloCluster, STACKABLE_LOG_DIR, LOGBACK_XML, HELLO_WORLD_LOG_FILE};
 use snafu::{OptionExt, ResultExt, Snafu};
 use stackable_operator::{
     builder::ConfigMapBuilder,
@@ -38,7 +38,6 @@ type Result<T, E = Error> = std::result::Result<T, E>;
 
 const VECTOR_AGGREGATOR_CM_ENTRY: &str = "ADDRESS";
 const CONSOLE_CONVERSION_PATTERN: &str = "%d{ISO8601} %5p [%t] %c{2}: %m%n";
-const HIVE_LOG_FILE: &str = "hive.log4j2.xml";
 
 /// Return the address of the Vector aggregator if the corresponding ConfigMap name is given in the
 /// cluster spec
@@ -87,16 +86,14 @@ pub fn extend_role_group_config_map(
     }) = logging.containers.get(&Container::Hello)
     {
         cm_builder.add_data(
-            HIVE_LOG4J2_PROPERTIES,
-            product_logging::framework::create_log4j2_config(
-                &format!(
-                    "{STACKABLE_LOG_DIR}/{container}",
-                    container = Container::Hello
-                ),
-                HIVE_LOG_FILE,
-                MAX_HIVE_LOG_FILES_SIZE_IN_MIB,
+            LOGBACK_XML,
+            product_logging::framework::create_logback_config(
+                &format!("{STACKABLE_LOG_DIR}/zookeeper"),
+                HELLO_WORLD_LOG_FILE,
+                MAX_LOG_FILES_SIZE_IN_MIB,
                 CONSOLE_CONVERSION_PATTERN,
                 log_config,
+                None,
             ),
         );
     }
