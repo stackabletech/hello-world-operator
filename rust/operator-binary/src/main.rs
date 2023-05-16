@@ -1,5 +1,4 @@
 mod affinity;
-mod config;
 mod controller;
 mod crd;
 mod product_logging;

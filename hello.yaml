@@ -5,8 +5,8 @@ metadata:
   name: hello-world
 spec:
   image:
-    custom: docker.io/library/nginx:1.23.4
-    productVersion: 0.1.0
+    custom: docker.stackable.tech/stackable/hello-world:0.0.1-SNAPSHOT-stackable0.0.0-dev
+    productVersion: 0.0.1
   recipient: "Stackable"
   color: "blue"
   clusterConfig:

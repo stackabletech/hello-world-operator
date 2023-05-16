@@ -1,16 +1,15 @@
 //! Ensures that `Pod`s are configured and running for each [`HelloCluster`]
-use crate::config::{generate_index_html, generate_nginx_conf};
 use crate::product_logging::{extend_role_group_config_map, resolve_vector_aggregator_address};
 use crate::OPERATOR_NAME;
 
 use crate::crd::{
-    Container, HelloCluster, HelloClusterStatus, HelloRole, ServerConfig, APP_NAME, HELLO_COLOR,
-    HELLO_RECIPIENT, HTTP_PORT, HTTP_PORT_NAME, INDEX_HTML, NGINX_CONF, STACKABLE_CONFIG_DIR,
-    STACKABLE_CONFIG_DIR_NAME, STACKABLE_CONFIG_MOUNT_DIR, STACKABLE_CONFIG_MOUNT_DIR_NAME,
+    Container, HelloCluster, HelloClusterStatus, HelloRole, ServerConfig, APPLICATION_PROPERTIES,
+    APP_NAME, HTTP_PORT, HTTP_PORT_NAME, STACKABLE_CONFIG_DIR, STACKABLE_CONFIG_DIR_NAME,
     STACKABLE_LOG_CONFIG_MOUNT_DIR, STACKABLE_LOG_CONFIG_MOUNT_DIR_NAME, STACKABLE_LOG_DIR,
     STACKABLE_LOG_DIR_NAME,
 };
 use snafu::{OptionExt, ResultExt, Snafu};
+use stackable_operator::product_config::writer::to_java_properties_string;
 use stackable_operator::{
     builder::{ConfigMapBuilder, ContainerBuilder, ObjectMetaBuilder, PodBuilder},
     cluster_resources::{ClusterResourceApplyStrategy, ClusterResources},
@@ -90,6 +89,10 @@ pub enum Error {
     ApplyRoleGroupService {
         source: stackable_operator::error::Error,
         rolegroup: RoleGroupRef<HelloCluster>,
+    },
+    #[snafu(display("failed to format runtime properties"))]
+    PropertiesWriteError {
+        source: stackable_operator::product_config::writer::PropertiesWriterError,
     },
     #[snafu(display("failed to build ConfigMap for {rolegroup}"))]
     BuildRoleGroupConfig {
@@ -196,7 +199,7 @@ pub async fn reconcile_hello(hello: Arc<HelloCluster>, ctx: Arc<Ctx>) -> Result<
                     vec![
                         PropertyNameKind::Env,
                         PropertyNameKind::Cli,
-                        PropertyNameKind::File(INDEX_HTML.to_string()),
+                        PropertyNameKind::File(APPLICATION_PROPERTIES.to_string()),
                     ],
                     hello.spec.servers.clone().context(NoServerRoleSnafu)?,
                 ),
@@ -367,23 +370,18 @@ fn build_server_rolegroup_config_map(
     merged_config: &ServerConfig,
     vector_aggregator_address: Option<&str>,
 ) -> Result<ConfigMap> {
-    let mut hello_index_html = String::new();
+    let mut application_properties = String::new();
 
     for (property_name_kind, config) in role_group_config {
         match property_name_kind {
-            PropertyNameKind::File(file_name) if file_name == INDEX_HTML => {
-                let recipient = config
-                    .get(HELLO_RECIPIENT)
-                    .map(|x| x.as_str())
-                    .unwrap_or("World");
-                let color = config
-                    .get(HELLO_COLOR)
-                    .map(|x| x.as_str())
-                    .unwrap_or("#000000");
+            PropertyNameKind::File(file_name) if file_name == APPLICATION_PROPERTIES => {
+                let transformed_config: BTreeMap<String, Option<String>> = config
+                    .iter()
+                    .map(|(k, v)| (k.clone(), Some(v.clone())))
+                    .collect();
 
-                // TODO maybe don't set these defaults in here ^
-
-                hello_index_html = generate_index_html(recipient, color);
+                application_properties = to_java_properties_string(transformed_config.iter())
+                    .context(PropertiesWriteSnafu)?;
             }
             _ => {}
         }
@@ -406,8 +404,7 @@ fn build_server_rolegroup_config_map(
                 ))
                 .build(),
         )
-        .add_data(INDEX_HTML, hello_index_html)
-        .add_data(NGINX_CONF, generate_nginx_conf());
+        .add_data(APPLICATION_PROPERTIES, application_properties);
 
     extend_role_group_config_map(
         rolegroup,
@@ -509,14 +506,8 @@ fn build_server_rolegroup_statefulset(
     let mut pod_builder = PodBuilder::new();
 
     let container_hello = container_builder
-        .command(vec![
-            "nginx".to_string(),
-            "-c".to_string(),
-            format!("{}/{}", STACKABLE_CONFIG_MOUNT_DIR, NGINX_CONF),
-        ])
         .image_from_product_image(resolved_product_image)
         .add_volume_mount(STACKABLE_CONFIG_DIR_NAME, STACKABLE_CONFIG_DIR)
-        .add_volume_mount(STACKABLE_CONFIG_MOUNT_DIR_NAME, STACKABLE_CONFIG_MOUNT_DIR)
         .add_volume_mount(STACKABLE_LOG_DIR_NAME, STACKABLE_LOG_DIR)
         .add_volume_mount(
             STACKABLE_LOG_CONFIG_MOUNT_DIR_NAME,
@@ -556,16 +547,8 @@ fn build_server_rolegroup_statefulset(
         })
         .image_pull_secrets_from_product_image(resolved_product_image)
         .add_container(container_hello)
-        .add_volume(Volume {
-            name: STACKABLE_CONFIG_DIR_NAME.to_string(),
-            empty_dir: Some(EmptyDirVolumeSource {
-                medium: None,
-                size_limit: Some(Quantity("10Mi".to_string())),
-            }),
-            ..Volume::default()
-        })
         .add_volume(stackable_operator::k8s_openapi::api::core::v1::Volume {
-            name: STACKABLE_CONFIG_MOUNT_DIR_NAME.to_string(),
+            name: STACKABLE_CONFIG_DIR_NAME.to_string(),
             config_map: Some(ConfigMapVolumeSource {
                 name: Some(rolegroup_ref.object_name()),
                 ..Default::default()

@@ -1,3 +1,8 @@
+//! This file contains the definition of all the custom resources that this Operator manages.
+//! In this case, it is only the `HelloCluster`.
+//!
+//! When writing a new Operator, this is often a good starting point. Edits made here will ripple
+//! through the codebase, so it's easy to follow up from here.
 use crate::affinity::get_affinity;
 use serde::{Deserialize, Serialize};
 use snafu::{OptionExt, ResultExt, Snafu};
@@ -27,19 +32,17 @@ pub const APP_NAME: &str = "hello";
 // directories
 pub const STACKABLE_CONFIG_DIR: &str = "/stackable/config";
 pub const STACKABLE_CONFIG_DIR_NAME: &str = "config";
-pub const STACKABLE_CONFIG_MOUNT_DIR: &str = "/stackable/mount/config";
-pub const STACKABLE_CONFIG_MOUNT_DIR_NAME: &str = "config-mount";
 pub const STACKABLE_LOG_DIR: &str = "/stackable/log";
 pub const STACKABLE_LOG_DIR_NAME: &str = "log";
 pub const STACKABLE_LOG_CONFIG_MOUNT_DIR: &str = "/stackable/mount/log-config";
 pub const STACKABLE_LOG_CONFIG_MOUNT_DIR_NAME: &str = "log-config-mount";
 // config file names
-pub const INDEX_HTML: &str = "index.html";
+pub const APPLICATION_PROPERTIES: &str = "application.properties";
 pub const HIVE_LOG4J2_PROPERTIES: &str = "hive-log4j2.properties";
-pub const NGINX_CONF: &str = "nginx.conf";
-// HTML file keys
-pub const HELLO_RECIPIENT: &str = "RECIPIENT";
-pub const HELLO_COLOR: &str = "COLOR";
+// config properties
+pub const SERVER_PORT: &str = "server.port";
+pub const GREETING_RECIPIENT: &str = "greeting.recipient";
+pub const GREETING_COLOR: &str = "greeting.color";
 // default ports
 pub const HTTP_PORT_NAME: &str = "http";
 pub const HTTP_PORT: u16 = 8080;
@@ -268,12 +271,13 @@ impl Configuration for ServerConfigFragment {
         let mut result = BTreeMap::new();
 
         match file {
-            INDEX_HTML => {
+            APPLICATION_PROPERTIES => {
                 result.insert(
-                    HELLO_RECIPIENT.to_owned(),
+                    GREETING_RECIPIENT.to_owned(),
                     Some(hello.spec.recipient.to_owned()),
                 );
-                result.insert(HELLO_COLOR.to_owned(), Some(hello.spec.color.to_owned()));
+                result.insert(GREETING_COLOR.to_owned(), Some(hello.spec.color.to_owned()));
+                result.insert(SERVER_PORT.to_owned(), Some(HTTP_PORT.to_string()));
             }
             _ => {}
         }
