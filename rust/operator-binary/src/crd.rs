@@ -39,8 +39,8 @@ pub const STACKABLE_LOG_CONFIG_MOUNT_DIR_NAME: &str = "log-config-mount";
 // config file names
 pub const APPLICATION_PROPERTIES: &str = "application.properties";
 pub const LOGBACK_XML: &str = "logback.xml";
-pub const HELLO_WORLD_LOG_FILE: &str = "hello-world.log4j.xml";
-// config properties
+pub const HELLO_WORLD_LOG_FILE: &str = "hello-world.log4j.xml"; // the extension .log4j.xml is important!
+                                                                // config properties
 pub const SERVER_PORT: &str = "server.port";
 pub const LOGGING_CONFIG: &str = "logging.config";
 pub const GREETING_RECIPIENT: &str = "greeting.recipient";
@@ -280,7 +280,10 @@ impl Configuration for ServerConfigFragment {
                 );
                 result.insert(GREETING_COLOR.to_owned(), Some(hello.spec.color.to_owned()));
                 result.insert(SERVER_PORT.to_owned(), Some(HTTP_PORT.to_string()));
-                result.insert(LOGGING_CONFIG.to_owned(), Some(format!("{}/{}", STACKABLE_CONFIG_DIR, LOGBACK_XML)));
+                result.insert(
+                    LOGGING_CONFIG.to_owned(),
+                    Some(format!("{}/{}", STACKABLE_CONFIG_DIR, LOGBACK_XML)),
+                );
             }
             _ => {}
         }
