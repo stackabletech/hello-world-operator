@@ -39,7 +39,7 @@ pub const STACKABLE_LOG_CONFIG_MOUNT_DIR_NAME: &str = "log-config-mount";
 // config file names
 pub const APPLICATION_PROPERTIES: &str = "application.properties";
 pub const LOGBACK_XML: &str = "logback.xml";
-pub const HELLO_WORLD_LOG_FILE: &str = "hello-world.xml";
+pub const HELLO_WORLD_LOG_FILE: &str = "hello-world.log4j.xml";
 // config properties
 pub const SERVER_PORT: &str = "server.port";
 pub const LOGGING_CONFIG: &str = "logging.config";

@@ -88,7 +88,7 @@ pub fn extend_role_group_config_map(
         cm_builder.add_data(
             LOGBACK_XML,
             product_logging::framework::create_logback_config(
-                &format!("{STACKABLE_LOG_DIR}/zookeeper"),
+                &format!("{STACKABLE_LOG_DIR}/hello"),
                 HELLO_WORLD_LOG_FILE,
                 MAX_LOG_FILES_SIZE_IN_MIB,
                 CONSOLE_CONVERSION_PATTERN,

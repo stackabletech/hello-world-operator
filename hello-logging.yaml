@@ -11,7 +11,20 @@ spec:
   color: "blue"
   clusterConfig:
     listenerClass: external-unstable
+    vectorAggregatorConfigMapName: vector-aggregator-discovery
   servers:
+    config:
+      logging:
+        enableVectorAgent: true
+        containers:
+          hello:
+            console:
+              level: INFO
+            file:
+              level: INFO
+            loggers:
+              ROOT:
+                level: INFO
     roleGroups:
       default:
         replicas: 1
