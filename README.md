@@ -17,6 +17,22 @@ Unlike the other stackable Operators, this one is not installable with Helm or s
 
 ... TODO Steps to get it to run etc.
 
+
+Apply the CRD
+
+    cargo run -- crd | kubectl apply -f -
+
+Deploy the HelloCluster:
+
+    kubectl apply -f hello.yaml && cargo run -- run
+
+Connect:
+
+    kubectl port-forward svc/hello-world 8080
+
+reachable at localhost:8080
+
+
 ## About The Stackable Data Platform
 
 This operator is written and maintained by [Stackable](https://www.stackable.tech) and it is part of a larger data platform.
