@@ -272,20 +272,17 @@ impl Configuration for ServerConfigFragment {
     ) -> Result<BTreeMap<String, Option<String>>, ConfigError> {
         let mut result = BTreeMap::new();
 
-        match file {
-            APPLICATION_PROPERTIES => {
-                result.insert(
-                    GREETING_RECIPIENT.to_owned(),
-                    Some(hello.spec.recipient.to_owned()),
-                );
-                result.insert(GREETING_COLOR.to_owned(), Some(hello.spec.color.to_owned()));
-                result.insert(SERVER_PORT.to_owned(), Some(HTTP_PORT.to_string()));
-                result.insert(
-                    LOGGING_CONFIG.to_owned(),
-                    Some(format!("{}/{}", STACKABLE_CONFIG_DIR, LOGBACK_XML)),
-                );
-            }
-            _ => {}
+        if file == APPLICATION_PROPERTIES {
+            result.insert(
+                GREETING_RECIPIENT.to_owned(),
+                Some(hello.spec.recipient.to_owned()),
+            );
+            result.insert(GREETING_COLOR.to_owned(), Some(hello.spec.color.to_owned()));
+            result.insert(SERVER_PORT.to_owned(), Some(HTTP_PORT.to_string()));
+            result.insert(
+                LOGGING_CONFIG.to_owned(),
+                Some(format!("{}/{}", STACKABLE_CONFIG_DIR, LOGBACK_XML)),
+            );
         }
 
         Ok(result)
