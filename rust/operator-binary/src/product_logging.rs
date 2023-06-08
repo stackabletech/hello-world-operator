@@ -1,6 +1,6 @@
 use crate::controller::MAX_LOG_FILES_SIZE_IN_MIB;
 
-use crate::crd::{Container, HelloCluster, STACKABLE_LOG_DIR, LOGBACK_XML, HELLO_WORLD_LOG_FILE};
+use crate::crd::{Container, HelloCluster, HELLO_WORLD_LOG_FILE, LOGBACK_XML, STACKABLE_LOG_DIR};
 use snafu::{OptionExt, ResultExt, Snafu};
 use stackable_operator::{
     builder::ConfigMapBuilder,

@@ -488,18 +488,15 @@ fn build_server_rolegroup_statefulset(
         })?;
 
     for (property_name_kind, config) in metastore_config {
-        match property_name_kind {
-            PropertyNameKind::Env => {
-                // overrides
-                for (property_name, property_value) in config {
-                    if property_name.is_empty() {
-                        warn!("Received empty property_name for ENV... skipping");
-                        continue;
-                    }
-                    container_builder.add_env_var(property_name, property_value);
+        if property_name_kind == &PropertyNameKind::Env {
+            // overrides
+            for (property_name, property_value) in config {
+                if property_name.is_empty() {
+                    warn!("Received empty property_name for ENV... skipping");
+                    continue;
                 }
+                container_builder.add_env_var(property_name, property_value);
             }
-            _ => {}
         }
     }
 

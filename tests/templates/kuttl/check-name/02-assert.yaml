@@ -1,0 +1,6 @@
+---
+apiVersion: kuttl.dev/v1beta1
+kind: TestAssert
+commands:
+  - script: kubectl exec -n $NAMESPACE checks-0 -- curl -s hello-world:8080 | grep 'color:blue.*Stackable'
+timeout: 30
