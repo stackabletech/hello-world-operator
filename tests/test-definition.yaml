@@ -11,3 +11,5 @@ dimensions:
 tests:
   - name: smoke
     dimensions: {}  # no dependencies in this test
+  - name: check-name
+    dimensions: {}  # no dependencies in this test
