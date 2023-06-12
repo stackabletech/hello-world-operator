@@ -1,0 +1,183 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "operator.fullname" . }}-clusterrole
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - nodes
+    verbs:
+      - list
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - pods
+      - configmaps
+      - secrets
+      - services
+      - endpoints
+      - serviceaccounts
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - rbac.authorization.k8s.io
+    resources:
+      - rolebindings
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - apps
+    resources:
+      - statefulsets
+    verbs:
+      - get
+      - create
+      - delete
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - batch
+    resources:
+      - jobs
+    verbs:
+      - create
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - apiextensions.k8s.io
+    resources:
+      - customresourcedefinitions
+    verbs:
+      - get
+  - apiGroups:
+      - events.k8s.io
+    resources:
+      - events
+    verbs:
+      - create
+  - apiGroups:
+      - {{ include "operator.name" . }}.stackable.tech
+    resources:
+      - {{ include "operator.name" . }}clusters
+    verbs:
+      - get
+      - list
+      - patch
+      - watch
+  - apiGroups:
+      - {{ include "operator.name" . }}.stackable.tech
+    resources:
+      - {{ include "operator.name" . }}clusters/status
+    verbs:
+      - patch
+  - apiGroups:
+      - s3.stackable.tech
+    resources:
+      - s3connections
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - rbac.authorization.k8s.io
+    resources:
+      - clusterroles
+    verbs:
+      - bind
+    resourceNames:
+      - {{ include "operator.name" . }}-clusterrole
+
+{{ if .Capabilities.APIVersions.Has "security.openshift.io/v1" }}
+---
+apiVersion: security.openshift.io/v1
+kind: SecurityContextConstraints
+metadata:
+  name: hello-scc
+  annotations:
+    kubernetes.io/description: |-
+      This resource is derived from hostmount-anyuid. It provides all the features of the
+      restricted SCC but allows host mounts and any UID by a pod.  This is primarily
+      used by the persistent volume recycler. WARNING: this SCC allows host file
+      system access as any UID, including UID 0.  Grant with caution.
+    release.openshift.io/create-only: "true"
+allowHostDirVolumePlugin: true
+allowHostIPC: false
+allowHostNetwork: false
+allowHostPID: false
+allowHostPorts: false
+allowPrivilegeEscalation: true
+allowPrivilegedContainer: false
+allowedCapabilities: null
+defaultAddCapabilities: null
+fsGroup:
+  type: RunAsAny
+groups: []
+priority: null
+readOnlyRootFilesystem: false
+runAsUser:
+  type: RunAsAny
+seLinuxContext:
+  type: MustRunAs
+supplementalGroups:
+  type: RunAsAny
+volumes:
+  - configMap
+  - downwardAPI
+  - emptyDir
+  - hostPath
+  - nfs
+  - persistentVolumeClaim
+  - projected
+  - secret
+  - ephemeral
+{{ end }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "operator.name" . }}-clusterrole
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+      - secrets
+      - serviceaccounts
+    verbs:
+      - get
+  - apiGroups:
+      - events.k8s.io
+    resources:
+      - events
+    verbs:
+      - create
+{{ if .Capabilities.APIVersions.Has "security.openshift.io/v1" }}
+  - apiGroups:
+      - security.openshift.io
+    resources:
+      - securitycontextconstraints
+    resourceNames:
+      - hello-scc
+    verbs:
+      - use
+{{ end }}
