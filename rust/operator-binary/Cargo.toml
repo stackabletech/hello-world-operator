@@ -9,7 +9,6 @@ version = "0.0.0-dev"
 publish = false
 
 [dependencies]
-indoc = "2.0.1"
 anyhow = "1.0"
 clap = "4.0"
 fnv = "1.0"
