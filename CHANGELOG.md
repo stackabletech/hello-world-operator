@@ -6,6 +6,6 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
-- Set explicit resources on all containers ([#434]).
+- Set explicit resources on all containers ([#14]).
 
 [#14]: https://github.com/stackabletech/hello-world-operator/pull/14
