@@ -7,6 +7,18 @@ apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: hello-world-server-default
+spec:
+  template:
+    spec:
+      containers:
+        - name: hello
+          resources:
+            requests:
+              cpu: 110m
+              memory: 256Mi
+            limits:
+              cpu: 410m
+              memory: 256Mi
 status:
   readyReplicas: 1
   replicas: 1
