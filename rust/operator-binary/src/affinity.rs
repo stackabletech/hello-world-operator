@@ -26,6 +26,7 @@ mod tests {
     use std::collections::BTreeMap;
 
     use crate::crd::HelloCluster;
+    use rstest::rstest;
     use stackable_operator::{
         commons::affinity::StackableAffinity,
         k8s_openapi::{
@@ -34,8 +35,9 @@ mod tests {
         },
     };
 
-    #[test]
-    fn test_affinity_defaults() {
+    #[rstest]
+    #[case(HelloRole::Server)]
+    fn test_affinity_defaults(#[case] role: HelloRole) {
         let input = r#"
         apiVersion: hive.stackable.tech/v1alpha1
         kind: HelloCluster
@@ -55,7 +57,9 @@ mod tests {
                 replicas: 1
         "#;
         let hello: HelloCluster = serde_yaml::from_str(input).expect("illegal test input");
-        let merged_config = hello.merged_config(&HelloRole::Server, "default").unwrap();
+        let merged_config = hello
+            .merged_config(&role, &role.rolegroup_ref(&hello, "default"))
+            .unwrap();
 
         assert_eq!(
             merged_config.affinity,
@@ -75,7 +79,7 @@ mod tests {
                                         ),
                                         (
                                             "app.kubernetes.io/component".to_string(),
-                                            "server".to_string(),
+                                            role.to_string(),
                                         )
                                     ]))
                                 }),
