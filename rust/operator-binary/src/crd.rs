@@ -25,8 +25,8 @@ use stackable_operator::{
     schemars::{self, JsonSchema},
     status::condition::{ClusterCondition, HasStatusCondition},
 };
-use std::collections::BTreeMap;
-use strum::{Display, EnumIter};
+use std::{collections::BTreeMap, str::FromStr};
+use strum::{Display, EnumIter, EnumString, IntoEnumIterator};
 
 pub const APP_NAME: &str = "hello";
 // directories
@@ -51,10 +51,18 @@ pub const HTTP_PORT: u16 = 8080;
 
 #[derive(Snafu, Debug)]
 pub enum Error {
-    #[snafu(display("no metastore role configuration provided"))]
-    MissingMetaStoreRole,
     #[snafu(display("fragment validation failure"))]
     FragmentValidationFailure { source: ValidationError },
+    #[snafu(display("unknown role {role}. Should be one of {roles:?}"))]
+    UnknownHelloRole {
+        source: strum::ParseError,
+        role: String,
+        roles: Vec<String>,
+    },
+    #[snafu(display("the role {role} is not defined"))]
+    CannotRetrieveHelloRole { role: String },
+    #[snafu(display("the role group {role_group} is not defined"))]
+    CannotRetrieveHelloRoleGroup { role_group: String },
 }
 
 #[derive(Clone, CustomResource, Debug, Deserialize, JsonSchema, PartialEq, Serialize)]
@@ -82,7 +90,7 @@ pub struct HelloClusterSpec {
     /// The image to use. In this example this will be an nginx image
     pub image: ProductImage,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub servers: Option<Role<ServerConfigFragment>>,
+    pub servers: Option<Role<HelloConfigFragment>>,
     pub recipient: String,
     pub color: String,
 }
@@ -132,11 +140,46 @@ impl CurrentlySupportedListenerClasses {
     }
 }
 
-#[derive(Display)]
+#[derive(
+    Clone,
+    Debug,
+    Deserialize,
+    Display,
+    EnumIter,
+    Eq,
+    Hash,
+    JsonSchema,
+    PartialEq,
+    Serialize,
+    EnumString,
+)]
 #[strum(serialize_all = "camelCase")]
 pub enum HelloRole {
     #[strum(serialize = "server")]
     Server,
+}
+
+impl HelloRole {
+    pub fn roles() -> Vec<String> {
+        let mut roles = vec![];
+        for role in Self::iter() {
+            roles.push(role.to_string())
+        }
+        roles
+    }
+
+    /// Metadata about a rolegroup
+    pub fn rolegroup_ref(
+        &self,
+        hello: &HelloCluster,
+        group_name: impl Into<String>,
+    ) -> RoleGroupRef<HelloCluster> {
+        RoleGroupRef {
+            cluster: ObjectRef::from_obj(hello),
+            role: self.to_string(),
+            role_group: group_name.into(),
+        }
+    }
 }
 
 #[derive(
@@ -192,7 +235,7 @@ pub struct ServerStorageConfig {
     ),
     serde(rename_all = "camelCase")
 )]
-pub struct ServerConfig {
+pub struct HelloConfig {
     #[fragment_attrs(serde(default))]
     pub resources: Resources<ServerStorageConfig, NoRuntimeLimits>,
     #[fragment_attrs(serde(default))]
@@ -201,9 +244,9 @@ pub struct ServerConfig {
     pub affinity: StackableAffinity,
 }
 
-impl ServerConfig {
-    fn default_config(cluster_name: &str, role: &HelloRole) -> ServerConfigFragment {
-        ServerConfigFragment {
+impl HelloConfig {
+    fn default_config(cluster_name: &str, role: &HelloRole) -> HelloConfigFragment {
+        HelloConfigFragment {
             resources: ResourcesFragment {
                 cpu: CpuLimitsFragment {
                     min: Some(Quantity("100m".to_owned())),
@@ -241,7 +284,7 @@ impl Default for ServiceType {
     }
 }
 
-impl Configuration for ServerConfigFragment {
+impl Configuration for HelloConfigFragment {
     type Configurable = HelloCluster;
 
     fn compute_env(
@@ -309,6 +352,35 @@ impl HasStatusCondition for HelloCluster {
 pub struct NoNamespaceError;
 
 impl HelloCluster {
+    /// Returns a reference to the role. Raises an error if the role is not defined.
+    pub fn role(&self, role_variant: &HelloRole) -> Result<&Role<HelloConfigFragment>, Error> {
+        match role_variant {
+            HelloRole::Server => self.spec.servers.as_ref(),
+        }
+        .with_context(|| CannotRetrieveHelloRoleSnafu {
+            role: role_variant.to_string(),
+        })
+    }
+
+    /// Returns a reference to the role group. Raises an error if the role or role group are not defined.
+    pub fn role_group(
+        &self,
+        rolegroup_ref: &RoleGroupRef<HelloCluster>,
+    ) -> Result<RoleGroup<HelloConfigFragment>, Error> {
+        let role_variant =
+            HelloRole::from_str(&rolegroup_ref.role).with_context(|_| UnknownHelloRoleSnafu {
+                role: rolegroup_ref.role.to_owned(),
+                roles: HelloRole::roles(),
+            })?;
+        let role = self.role(&role_variant)?;
+        role.role_groups
+            .get(&rolegroup_ref.role_group)
+            .with_context(|| CannotRetrieveHelloRoleGroupSnafu {
+                role_group: rolegroup_ref.role_group.to_owned(),
+            })
+            .cloned()
+    }
+
     /// The name of the role-level load-balanced Kubernetes `Service`
     pub fn server_role_service_name(&self) -> Option<&str> {
         self.metadata.name.as_deref()
@@ -351,38 +423,26 @@ impl HelloCluster {
             }))
     }
 
-    pub fn get_role(&self, role: &HelloRole) -> Option<&Role<ServerConfigFragment>> {
-        match role {
-            HelloRole::Server => self.spec.servers.as_ref(),
-        }
-    }
-
     /// Retrieve and merge resource configs for role and role groups
-    pub fn merged_config(&self, role: &HelloRole, role_group: &str) -> Result<ServerConfig, Error> {
+    pub fn merged_config(
+        &self,
+        role: &HelloRole,
+        rolegroup_ref: &RoleGroupRef<HelloCluster>,
+    ) -> Result<HelloConfig, Error> {
         // Initialize the result with all default values as baseline
-        let conf_defaults = ServerConfig::default_config(&self.name_any(), role);
+        let conf_defaults = HelloConfig::default_config(&self.name_any(), role);
 
-        let role = self.get_role(role).context(MissingMetaStoreRoleSnafu)?;
-
-        // Retrieve role resource config
+        let role = self.role(role)?;
         let mut conf_role = role.config.config.to_owned();
 
-        // Retrieve rolegroup specific resource config
-        let mut conf_rolegroup = role
-            .role_groups
-            .get(role_group)
-            .map(|rg| rg.config.config.clone())
-            .unwrap_or_default();
+        let role_group = self.role_group(rolegroup_ref)?;
+        let mut conf_role_group = role_group.config.config.to_owned();
 
-        if let Some(RoleGroup {
-            selector: Some(selector),
-            ..
-        }) = role.role_groups.get(role_group)
-        {
+        if let Some(selector) = &role_group.selector {
             // Migrate old `selector` attribute, see ADR 26 affinities.
             // TODO Can be removed after support for the old `selector` field is dropped.
             #[allow(deprecated)]
-            conf_rolegroup.affinity.add_legacy_selector(selector);
+            conf_role_group.affinity.add_legacy_selector(selector);
         }
 
         // Merge more specific configs into default config
@@ -391,10 +451,10 @@ impl HelloCluster {
         // 2. Role
         // 3. Default
         conf_role.merge(&conf_defaults);
-        conf_rolegroup.merge(&conf_role);
+        conf_role_group.merge(&conf_role);
 
-        tracing::debug!("Merged config: {:?}", conf_rolegroup);
-        fragment::validate(conf_rolegroup).context(FragmentValidationFailureSnafu)
+        tracing::debug!("Merged config: {:?}", conf_role_group);
+        fragment::validate(conf_role_group).context(FragmentValidationFailureSnafu)
     }
 }
 

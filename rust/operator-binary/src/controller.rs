@@ -3,7 +3,7 @@ use crate::product_logging::{extend_role_group_config_map, resolve_vector_aggreg
 use crate::OPERATOR_NAME;
 
 use crate::crd::{
-    Container, HelloCluster, HelloClusterStatus, HelloRole, ServerConfig, APPLICATION_PROPERTIES,
+    Container, HelloCluster, HelloClusterStatus, HelloConfig, HelloRole, APPLICATION_PROPERTIES,
     APP_NAME, HTTP_PORT, HTTP_PORT_NAME, STACKABLE_CONFIG_DIR, STACKABLE_CONFIG_DIR_NAME,
     STACKABLE_LOG_CONFIG_MOUNT_DIR, STACKABLE_LOG_CONFIG_MOUNT_DIR_NAME, STACKABLE_LOG_DIR,
     STACKABLE_LOG_DIR_NAME,
@@ -27,6 +27,7 @@ use stackable_operator::{
         apimachinery::pkg::{
             api::resource::Quantity, apis::meta::v1::LabelSelector, util::intstr::IntOrString,
         },
+        DeepMerge,
     },
     kube::{runtime::controller::Action, Resource, ResourceExt},
     labels::{role_group_selector_labels, role_selector_labels, ObjectLabels},
@@ -74,6 +75,8 @@ pub struct Ctx {
 #[strum_discriminants(derive(strum::IntoStaticStr))]
 #[allow(clippy::enum_variant_names)]
 pub enum Error {
+    #[snafu(display("internal operator failure"))]
+    InternalOperatorFailure { source: crate::crd::Error },
     #[snafu(display("object defines no namespace"))]
     ObjectHasNoNamespace,
     #[snafu(display("object defines no metastore role"))]
@@ -191,6 +194,7 @@ pub async fn reconcile_hello(hello: Arc<HelloCluster>, ctx: Arc<Ctx>) -> Result<
     let client = &ctx.client;
     let resolved_product_image: ResolvedProductImage =
         hello.spec.image.resolve(DOCKER_IMAGE_BASE_NAME);
+    let hello_role = HelloRole::Server;
 
     let validated_config = validate_all_roles_and_groups_config(
         &resolved_product_image.product_version,
@@ -261,17 +265,17 @@ pub async fn reconcile_hello(hello: Arc<HelloCluster>, ctx: Arc<Ctx>) -> Result<
     let mut ss_cond_builder = StatefulSetConditionBuilder::default();
 
     for (rolegroup_name, rolegroup_config) in server_config.iter() {
-        let rolegroup = hello.server_rolegroup_ref(rolegroup_name);
+        let role_group_ref = hello.server_rolegroup_ref(rolegroup_name);
 
         let config = hello
-            .merged_config(&HelloRole::Server, &rolegroup.role_group)
+            .merged_config(&HelloRole::Server, &role_group_ref)
             .context(FailedToResolveResourceConfigSnafu)?;
 
-        let rg_service = build_rolegroup_service(&hello, &resolved_product_image, &rolegroup)?;
+        let rg_service = build_rolegroup_service(&hello, &resolved_product_image, &role_group_ref)?;
         let rg_configmap = build_server_rolegroup_config_map(
             &hello,
             &resolved_product_image,
-            &rolegroup,
+            &role_group_ref,
             rolegroup_config,
             &config,
             vector_aggregator_address.as_deref(),
@@ -279,7 +283,8 @@ pub async fn reconcile_hello(hello: Arc<HelloCluster>, ctx: Arc<Ctx>) -> Result<
         let rg_statefulset = build_server_rolegroup_statefulset(
             &hello,
             &resolved_product_image,
-            &rolegroup,
+            &hello_role,
+            &role_group_ref,
             rolegroup_config,
             &config,
             &rbac_sa.name_any(),
@@ -289,14 +294,14 @@ pub async fn reconcile_hello(hello: Arc<HelloCluster>, ctx: Arc<Ctx>) -> Result<
             .add(client, rg_service)
             .await
             .context(ApplyRoleGroupServiceSnafu {
-                rolegroup: rolegroup.clone(),
+                rolegroup: role_group_ref.clone(),
             })?;
 
         cluster_resources
             .add(client, rg_configmap)
             .await
             .context(ApplyRoleGroupConfigSnafu {
-                rolegroup: rolegroup.clone(),
+                rolegroup: role_group_ref.clone(),
             })?;
 
         ss_cond_builder.add(
@@ -304,7 +309,7 @@ pub async fn reconcile_hello(hello: Arc<HelloCluster>, ctx: Arc<Ctx>) -> Result<
                 .add(client, rg_statefulset)
                 .await
                 .context(ApplyRoleGroupStatefulSetSnafu {
-                    rolegroup: rolegroup.clone(),
+                    rolegroup: role_group_ref.clone(),
                 })?,
         );
     }
@@ -370,7 +375,7 @@ fn build_server_rolegroup_config_map(
     resolved_product_image: &ResolvedProductImage,
     rolegroup: &RoleGroupRef<HelloCluster>,
     role_group_config: &HashMap<PropertyNameKind, BTreeMap<String, String>>,
-    merged_config: &ServerConfig,
+    merged_config: &HelloConfig,
     vector_aggregator_address: Option<&str>,
 ) -> Result<ConfigMap> {
     let mut application_properties = String::new();
@@ -472,19 +477,20 @@ fn build_rolegroup_service(
 fn build_server_rolegroup_statefulset(
     hello: &HelloCluster,
     resolved_product_image: &ResolvedProductImage,
-    rolegroup_ref: &RoleGroupRef<HelloCluster>,
+    hello_role: &HelloRole,
+    role_group_ref: &RoleGroupRef<HelloCluster>,
     metastore_config: &HashMap<PropertyNameKind, BTreeMap<String, String>>,
-    merged_config: &ServerConfig,
+    merged_config: &HelloConfig,
     sa_name: &str,
 ) -> Result<StatefulSet> {
     // TODO this function still needs to be checked
-    let rolegroup = hello
-        .spec
-        .servers
-        .as_ref()
-        .context(NoServerRoleSnafu)?
-        .role_groups
-        .get(&rolegroup_ref.role_group);
+    let role = hello
+        .role(hello_role)
+        .context(InternalOperatorFailureSnafu)?;
+    let role_group = hello
+        .role_group(role_group_ref)
+        .context(InternalOperatorFailureSnafu)?;
+
     let mut container_builder =
         ContainerBuilder::new(APP_NAME).context(FailedToCreateHelloContainerSnafu {
             name: APP_NAME.to_string(),
@@ -541,8 +547,8 @@ fn build_server_rolegroup_statefulset(
             m.with_recommended_labels(build_recommended_labels(
                 hello,
                 &resolved_product_image.app_version_label,
-                &rolegroup_ref.role,
-                &rolegroup_ref.role_group,
+                &role_group_ref.role,
+                &role_group_ref.role_group,
             ))
         })
         .image_pull_secrets_from_product_image(resolved_product_image)
@@ -550,7 +556,7 @@ fn build_server_rolegroup_statefulset(
         .add_volume(stackable_operator::k8s_openapi::api::core::v1::Volume {
             name: STACKABLE_CONFIG_DIR_NAME.to_string(),
             config_map: Some(ConfigMapVolumeSource {
-                name: Some(rolegroup_ref.object_name()),
+                name: Some(role_group_ref.object_name()),
                 ..Default::default()
             }),
             ..Default::default()
@@ -593,7 +599,7 @@ fn build_server_rolegroup_statefulset(
         pod_builder.add_volume(Volume {
             name: STACKABLE_LOG_CONFIG_MOUNT_DIR_NAME.to_string(),
             config_map: Some(ConfigMapVolumeSource {
-                name: Some(rolegroup_ref.object_name()),
+                name: Some(role_group_ref.object_name()),
                 ..ConfigMapVolumeSource::default()
             }),
             ..Volume::default()
@@ -615,33 +621,37 @@ fn build_server_rolegroup_statefulset(
         ));
     }
 
+    let mut pod_template = pod_builder.build_template();
+    pod_template.merge_from(role.config.pod_overrides.clone());
+    pod_template.merge_from(role_group.config.pod_overrides.clone());
+
     Ok(StatefulSet {
         metadata: ObjectMetaBuilder::new()
             .name_and_namespace(hello)
-            .name(&rolegroup_ref.object_name())
+            .name(&role_group_ref.object_name())
             .ownerreference_from_resource(hello, None, Some(true))
             .context(ObjectMissingMetadataForOwnerRefSnafu)?
             .with_recommended_labels(build_recommended_labels(
                 hello,
                 &resolved_product_image.app_version_label,
-                &rolegroup_ref.role,
-                &rolegroup_ref.role_group,
+                &role_group_ref.role,
+                &role_group_ref.role_group,
             ))
             .build(),
         spec: Some(StatefulSetSpec {
             pod_management_policy: Some("Parallel".to_string()),
-            replicas: rolegroup.and_then(|rg| rg.replicas).map(i32::from),
+            replicas: role_group.replicas.map(i32::from),
             selector: LabelSelector {
                 match_labels: Some(role_group_selector_labels(
                     hello,
                     APP_NAME,
-                    &rolegroup_ref.role,
-                    &rolegroup_ref.role_group,
+                    &role_group_ref.role,
+                    &role_group_ref.role_group,
                 )),
                 ..LabelSelector::default()
             },
-            service_name: rolegroup_ref.object_name(),
-            template: pod_builder.build_template(),
+            service_name: role_group_ref.object_name(),
+            template: pod_template,
             volume_claim_templates: Some(vec![merged_config
                 .resources
                 .storage
