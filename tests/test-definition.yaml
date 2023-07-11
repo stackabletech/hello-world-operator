@@ -13,3 +13,5 @@ tests:
     dimensions: {}  # no dependencies in this test
   - name: check-name
     dimensions: {}  # no dependencies in this test
+suites:
+  - name: nightly
