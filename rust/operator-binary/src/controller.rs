@@ -24,14 +24,13 @@ use stackable_operator::{
                 ServicePort, ServiceSpec, TCPSocketAction, Volume,
             },
         },
-        apimachinery::pkg::{
-            api::resource::Quantity, apis::meta::v1::LabelSelector, util::intstr::IntOrString,
-        },
+        apimachinery::pkg::{apis::meta::v1::LabelSelector, util::intstr::IntOrString},
         DeepMerge,
     },
     kube::{runtime::controller::Action, Resource, ResourceExt},
     labels::{role_group_selector_labels, role_selector_labels, ObjectLabels},
     logging::controller::ReconcilerError,
+    memory::{BinaryMultiple, MemoryQuantity},
     product_config::writer::to_java_properties_string,
     product_config::{types::PropertyNameKind, ProductConfigManager},
     product_config_utils::{transform_all_roles_to_config, validate_all_roles_and_groups_config},
@@ -60,11 +59,10 @@ use tracing::warn;
 pub const HELLO_CONTROLLER_NAME: &str = "hellocluster";
 const DOCKER_IMAGE_BASE_NAME: &str = "hello";
 
-pub const MAX_LOG_FILES_SIZE_IN_MIB: u32 = 10;
-
-const OVERFLOW_BUFFER_ON_LOG_VOLUME_IN_MIB: u32 = 1;
-const LOG_VOLUME_SIZE_IN_MIB: u32 =
-    MAX_LOG_FILES_SIZE_IN_MIB + OVERFLOW_BUFFER_ON_LOG_VOLUME_IN_MIB;
+pub const MAX_LOG_VOLUME_SIZE: MemoryQuantity = MemoryQuantity {
+    value: 10.0,
+    unit: BinaryMultiple::Mebi,
+};
 
 pub struct Ctx {
     pub client: stackable_operator::client::Client,
@@ -565,7 +563,9 @@ fn build_server_rolegroup_statefulset(
             name: STACKABLE_LOG_DIR_NAME.to_string(),
             empty_dir: Some(EmptyDirVolumeSource {
                 medium: None,
-                size_limit: Some(Quantity(format!("{LOG_VOLUME_SIZE_IN_MIB}Mi"))),
+                size_limit: Some(product_logging::framework::calculate_log_volume_size_limit(
+                    &[MAX_LOG_VOLUME_SIZE],
+                )),
             }),
             ..Volume::default()
         })
