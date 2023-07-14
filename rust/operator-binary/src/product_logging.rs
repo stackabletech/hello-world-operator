@@ -1,12 +1,14 @@
-use crate::controller::MAX_LOG_FILES_SIZE_IN_MIB;
-
-use crate::crd::{Container, HelloCluster, HELLO_WORLD_LOG_FILE, LOGBACK_XML, STACKABLE_LOG_DIR};
+use crate::{
+    controller::MAX_LOG_FILES_SIZE,
+    crd::{Container, HelloCluster, HELLO_WORLD_LOG_FILE, LOGBACK_XML, STACKABLE_LOG_DIR},
+};
 use snafu::{OptionExt, ResultExt, Snafu};
 use stackable_operator::{
     builder::ConfigMapBuilder,
     client::Client,
     k8s_openapi::api::core::v1::ConfigMap,
     kube::ResourceExt,
+    memory::BinaryMultiple,
     product_logging::{
         self,
         spec::{ContainerLogConfig, ContainerLogConfigChoice, Logging},
@@ -90,7 +92,10 @@ pub fn extend_role_group_config_map(
             product_logging::framework::create_logback_config(
                 &format!("{STACKABLE_LOG_DIR}/hello"),
                 HELLO_WORLD_LOG_FILE,
-                MAX_LOG_FILES_SIZE_IN_MIB,
+                MAX_LOG_FILES_SIZE
+                    .scale_to(BinaryMultiple::Mebi)
+                    .floor()
+                    .value as u32,
                 CONSOLE_CONVERSION_PATTERN,
                 log_config,
                 None,
