@@ -59,7 +59,7 @@ use tracing::warn;
 pub const HELLO_CONTROLLER_NAME: &str = "hellocluster";
 const DOCKER_IMAGE_BASE_NAME: &str = "hello";
 
-pub const MAX_LOG_VOLUME_SIZE: MemoryQuantity = MemoryQuantity {
+pub const MAX_LOG_FILES_SIZE: MemoryQuantity = MemoryQuantity {
     value: 10.0,
     unit: BinaryMultiple::Mebi,
 };
