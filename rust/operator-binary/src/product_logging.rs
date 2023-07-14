@@ -1,5 +1,5 @@
 use crate::{
-    controller::MAX_LOG_VOLUME_SIZE,
+    controller::MAX_LOG_FILES_SIZE,
     crd::{Container, HelloCluster, HELLO_WORLD_LOG_FILE, LOGBACK_XML, STACKABLE_LOG_DIR},
 };
 use snafu::{OptionExt, ResultExt, Snafu};
@@ -92,7 +92,7 @@ pub fn extend_role_group_config_map(
             product_logging::framework::create_logback_config(
                 &format!("{STACKABLE_LOG_DIR}/hello"),
                 HELLO_WORLD_LOG_FILE,
-                MAX_LOG_VOLUME_SIZE
+                MAX_LOG_FILES_SIZE
                     .scale_to(BinaryMultiple::Mebi)
                     .floor()
                     .value as u32,

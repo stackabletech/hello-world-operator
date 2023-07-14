@@ -564,7 +564,7 @@ fn build_server_rolegroup_statefulset(
             empty_dir: Some(EmptyDirVolumeSource {
                 medium: None,
                 size_limit: Some(product_logging::framework::calculate_log_volume_size_limit(
-                    &[MAX_LOG_VOLUME_SIZE],
+                    &[MAX_LOG_FILES_SIZE],
                 )),
             }),
             ..Volume::default()
