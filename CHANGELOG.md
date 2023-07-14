@@ -8,7 +8,7 @@ All notable changes to this project will be documented in this file.
 
 - Set explicit resources on all containers ([#14]).
 - Support `podOverrides` ([#15]).
-- Operator-rs: `0.42.2` -> `0.44.0` ([#xx]).
+- Operator-rs: `0.44.0` ([#18]).
 - Increase the size limit of the log volumes ([#18])
 
 [#14]: https://github.com/stackabletech/hello-world-operator/pull/14
