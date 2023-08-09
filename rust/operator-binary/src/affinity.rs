@@ -46,7 +46,6 @@ mod tests {
         spec:
           image:
             productVersion: 0.1.0
-            stackableVersion: 0.prerelease
           recipient: "Stackable"
           color: "blue"
           clusterConfig:
