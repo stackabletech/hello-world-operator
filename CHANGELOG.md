@@ -10,6 +10,7 @@ All notable changes to this project will be documented in this file.
 - Support `podOverrides` ([#15]).
 - Operator-rs: `0.44.0` ([#18]).
 - Increase the size limit of the log volumes ([#18])
+- Configuration overrides for the JVM security properties, such as DNS caching ([#23]).
 
 ### Changed
 
@@ -19,3 +20,4 @@ All notable changes to this project will be documented in this file.
 [#15]: https://github.com/stackabletech/hello-world-operator/pull/15
 [#18]: https://github.com/stackabletech/hello-world-operator/pull/18
 [#21]: https://github.com/stackabletech/hello-world-operator/pull/21
+[#23]: https://github.com/stackabletech/hello-world-operator/pull/23

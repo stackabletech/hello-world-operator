@@ -40,7 +40,8 @@ pub const STACKABLE_LOG_CONFIG_MOUNT_DIR_NAME: &str = "log-config-mount";
 pub const APPLICATION_PROPERTIES: &str = "application.properties";
 pub const LOGBACK_XML: &str = "logback.xml";
 pub const HELLO_WORLD_LOG_FILE: &str = "hello-world.log4j.xml"; // the extension .log4j.xml is important!
-                                                                // config properties
+pub const JVM_SECURITY_PROPERTIES: &str = "security.properties";
+// config properties
 pub const SERVER_PORT: &str = "server.port";
 pub const LOGGING_CONFIG: &str = "logging.config";
 pub const GREETING_RECIPIENT: &str = "greeting.recipient";
