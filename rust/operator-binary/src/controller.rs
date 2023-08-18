@@ -4,9 +4,9 @@ use crate::OPERATOR_NAME;
 
 use crate::crd::{
     Container, HelloCluster, HelloClusterStatus, HelloConfig, HelloRole, APPLICATION_PROPERTIES,
-    APP_NAME, HTTP_PORT, HTTP_PORT_NAME, STACKABLE_CONFIG_DIR, STACKABLE_CONFIG_DIR_NAME,
-    STACKABLE_LOG_CONFIG_MOUNT_DIR, STACKABLE_LOG_CONFIG_MOUNT_DIR_NAME, STACKABLE_LOG_DIR,
-    STACKABLE_LOG_DIR_NAME,
+    APP_NAME, HTTP_PORT, HTTP_PORT_NAME, JVM_SECURITY_PROPERTIES, STACKABLE_CONFIG_DIR,
+    STACKABLE_CONFIG_DIR_NAME, STACKABLE_LOG_CONFIG_MOUNT_DIR, STACKABLE_LOG_CONFIG_MOUNT_DIR_NAME,
+    STACKABLE_LOG_DIR, STACKABLE_LOG_DIR_NAME,
 };
 use snafu::{OptionExt, ResultExt, Snafu};
 use stackable_operator::{
@@ -178,6 +178,14 @@ pub enum Error {
     BuildRbacResources {
         source: stackable_operator::error::Error,
     },
+    #[snafu(display(
+        "failed to serialize [{JVM_SECURITY_PROPERTIES}] for group {}",
+        rolegroup
+    ))]
+    JvmSecurityProperties {
+        source: stackable_operator::product_config::writer::PropertiesWriterError,
+        rolegroup: String,
+    },
 }
 type Result<T, E = Error> = std::result::Result<T, E>;
 
@@ -207,6 +215,7 @@ pub async fn reconcile_hello(hello: Arc<HelloCluster>, ctx: Arc<Ctx>) -> Result<
                         PropertyNameKind::Env,
                         PropertyNameKind::Cli,
                         PropertyNameKind::File(APPLICATION_PROPERTIES.to_string()),
+                        PropertyNameKind::File(JVM_SECURITY_PROPERTIES.to_string()),
                     ],
                     hello.spec.servers.clone().context(NoServerRoleSnafu)?,
                 ),
@@ -395,6 +404,15 @@ fn build_server_rolegroup_config_map(
         }
     }
 
+    // build JVM security properties from configOverrides.
+    let jvm_sec_props: BTreeMap<String, Option<String>> = role_group_config
+        .get(&PropertyNameKind::File(JVM_SECURITY_PROPERTIES.to_string()))
+        .cloned()
+        .unwrap_or_default()
+        .into_iter()
+        .map(|(k, v)| (k, Some(v)))
+        .collect();
+
     let mut cm_builder = ConfigMapBuilder::new();
 
     cm_builder
@@ -412,7 +430,15 @@ fn build_server_rolegroup_config_map(
                 ))
                 .build(),
         )
-        .add_data(APPLICATION_PROPERTIES, application_properties);
+        .add_data(APPLICATION_PROPERTIES, application_properties)
+        .add_data(
+            JVM_SECURITY_PROPERTIES,
+            to_java_properties_string(jvm_sec_props.iter()).with_context(|_| {
+                JvmSecurityPropertiesSnafu {
+                    rolegroup: rolegroup.role_group.clone(),
+                }
+            })?,
+        );
 
     extend_role_group_config_map(
         rolegroup,
@@ -509,9 +535,16 @@ fn build_server_rolegroup_statefulset(
         }
     }
 
+    let command = vec![
+        format!("java"),
+        format!("-Djava.security.properties={STACKABLE_CONFIG_DIR}/{JVM_SECURITY_PROPERTIES}"),
+        format!("-jar"),
+        format!("hello-world.jar"),
+    ];
     let mut pod_builder = PodBuilder::new();
 
     let container_hello = container_builder
+        .command(command)
         .image_from_product_image(resolved_product_image)
         .add_volume_mount(STACKABLE_CONFIG_DIR_NAME, STACKABLE_CONFIG_DIR)
         .add_volume_mount(STACKABLE_LOG_DIR_NAME, STACKABLE_LOG_DIR)
