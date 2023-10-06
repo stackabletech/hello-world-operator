@@ -22,3 +22,12 @@ spec:
 status:
   readyReplicas: 1
   replicas: 1
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: hello-world-server
+status:
+  expectedPods: 1
+  currentHealthy: 1
+  disruptionsAllowed: 1
