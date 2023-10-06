@@ -1,4 +1,5 @@
 //! Ensures that `Pod`s are configured and running for each [`HelloCluster`]
+use crate::operations::pdb::add_pdbs;
 use crate::product_logging::{extend_role_group_config_map, resolve_vector_aggregator_address};
 use crate::OPERATOR_NAME;
 
@@ -9,6 +10,7 @@ use crate::crd::{
     STACKABLE_LOG_DIR, STACKABLE_LOG_DIR_NAME,
 };
 use snafu::{OptionExt, ResultExt, Snafu};
+use stackable_operator::role_utils::GenericRoleConfig;
 use stackable_operator::{
     builder::{
         resources::ResourceRequirementsBuilder, ConfigMapBuilder, ContainerBuilder,
@@ -186,6 +188,10 @@ pub enum Error {
         source: stackable_operator::product_config::writer::PropertiesWriterError,
         rolegroup: String,
     },
+    #[snafu(display("failed to create PodDisruptionBudget"))]
+    FailedToCreatePdb {
+        source: crate::operations::pdb::Error,
+    },
 }
 type Result<T, E = Error> = std::result::Result<T, E>;
 
@@ -321,6 +327,16 @@ pub async fn reconcile_hello(hello: Arc<HelloCluster>, ctx: Arc<Ctx>) -> Result<
                     rolegroup: role_group_ref.clone(),
                 })?,
         );
+    }
+
+    let role_config = hello.role_config(&hello_role);
+    if let Some(GenericRoleConfig {
+        pod_disruption_budget: pdb,
+    }) = role_config
+    {
+        add_pdbs(pdb, &hello, &hello_role, client, &mut cluster_resources)
+            .await
+            .context(FailedToCreatePdbSnafu)?;
     }
 
     let cluster_operation_cond_builder =

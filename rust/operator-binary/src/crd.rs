@@ -21,7 +21,7 @@ use stackable_operator::{
     kube::{runtime::reflector::ObjectRef, CustomResource, ResourceExt},
     product_config_utils::{ConfigError, Configuration},
     product_logging::{self, spec::Logging},
-    role_utils::{Role, RoleGroup, RoleGroupRef},
+    role_utils::{GenericRoleConfig, Role, RoleGroup, RoleGroupRef},
     schemars::{self, JsonSchema},
     status::condition::{ClusterCondition, HasStatusCondition},
 };
@@ -422,6 +422,12 @@ impl HelloCluster {
                     pod_name: format!("{}-{}", rolegroup_ref.object_name(), i),
                 })
             }))
+    }
+
+    pub fn role_config(&self, role: &HelloRole) -> Option<&GenericRoleConfig> {
+        match role {
+            HelloRole::Server => self.spec.servers.as_ref().map(|s| &s.role_config),
+        }
     }
 
     /// Retrieve and merge resource configs for role and role groups

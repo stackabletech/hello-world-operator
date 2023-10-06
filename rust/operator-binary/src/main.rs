@@ -1,6 +1,7 @@
 mod affinity;
 mod controller;
 mod crd;
+mod operations;
 mod product_logging;
 
 use crate::controller::HELLO_CONTROLLER_NAME;

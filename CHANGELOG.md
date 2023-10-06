@@ -8,9 +8,9 @@ All notable changes to this project will be documented in this file.
 
 - Set explicit resources on all containers ([#14]).
 - Support `podOverrides` ([#15]).
-- Operator-rs: `0.44.0` ([#18]).
 - Increase the size limit of the log volumes ([#18])
 - Configuration overrides for the JVM security properties, such as DNS caching ([#23]).
+- Support PodDisruptionBudgets ([#XXX]).
 
 ### Changed
 
