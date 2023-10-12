@@ -12,6 +12,11 @@ spec:
   clusterConfig:
     listenerClass: external-unstable
   servers:
+    config:
+      resources:
+        storage:
+          data:
+            capacity: 1Gi # IONOS needs at least 1Gi
     roleGroups:
       default:
         replicas: 1
