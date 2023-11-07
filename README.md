@@ -35,7 +35,7 @@ reachable at localhost:8080
 
 ## About The Stackable Data Platform
 
-This operator is written and maintained by [Stackable](https://www.stackable.tech) and it is part of a larger data platform.
+This operator is written and maintained by [Stackable](https://stackable.tech) and it is part of a larger data platform.
 
 ![Stackable Data Platform Overview](./.readme/static/borrowed/sdp_overview.png)
 
