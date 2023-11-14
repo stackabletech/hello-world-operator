@@ -11,6 +11,7 @@ All notable changes to this project will be documented in this file.
 - Increase the size limit of the log volumes ([#18])
 - Configuration overrides for the JVM security properties, such as DNS caching ([#23]).
 - Support PodDisruptionBudgets ([#27]).
+- Support graceful shutdown ([#33]).
 
 ### Changed
 
@@ -22,3 +23,4 @@ All notable changes to this project will be documented in this file.
 [#21]: https://github.com/stackabletech/hello-world-operator/pull/21
 [#23]: https://github.com/stackabletech/hello-world-operator/pull/23
 [#27]: https://github.com/stackabletech/hello-world-operator/pull/27
+[#33]: https://github.com/stackabletech/hello-world-operator/pull/33
