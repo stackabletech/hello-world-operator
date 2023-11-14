@@ -3,7 +3,6 @@
 //!
 //! When writing a new Operator, this is often a good starting point. Edits made here will ripple
 //! through the codebase, so it's easy to follow up from here.
-use crate::affinity::get_affinity;
 use serde::{Deserialize, Serialize};
 use snafu::{OptionExt, ResultExt, Snafu};
 use stackable_operator::{
@@ -24,9 +23,12 @@ use stackable_operator::{
     role_utils::{GenericRoleConfig, Role, RoleGroup, RoleGroupRef},
     schemars::{self, JsonSchema},
     status::condition::{ClusterCondition, HasStatusCondition},
+    time::Duration,
 };
 use std::{collections::BTreeMap, str::FromStr};
 use strum::{Display, EnumIter, EnumString, IntoEnumIterator};
+
+use crate::affinity::get_affinity;
 
 pub const APP_NAME: &str = "hello";
 // directories
@@ -49,6 +51,8 @@ pub const GREETING_COLOR: &str = "greeting.color";
 // default ports
 pub const HTTP_PORT_NAME: &str = "http";
 pub const HTTP_PORT: u16 = 8080;
+
+const DEFAULT_HELLO_WORLD_GRACEFUL_SHUTDOWN_TIMEOUT: Duration = Duration::from_minutes_unchecked(2);
 
 #[derive(Snafu, Debug)]
 pub enum Error {
@@ -243,6 +247,9 @@ pub struct HelloConfig {
     pub logging: Logging<Container>,
     #[fragment_attrs(serde(default))]
     pub affinity: StackableAffinity,
+    /// Time period Pods have to gracefully shut down, e.g. `30m`, `1h` or `2d`. Consult the operator documentation for details.
+    #[fragment_attrs(serde(default))]
+    pub graceful_shutdown_timeout: Option<Duration>,
 }
 
 impl HelloConfig {
@@ -267,6 +274,7 @@ impl HelloConfig {
             },
             logging: product_logging::spec::default_logging(),
             affinity: get_affinity(cluster_name, role),
+            graceful_shutdown_timeout: Some(DEFAULT_HELLO_WORLD_GRACEFUL_SHUTDOWN_TIMEOUT),
         }
     }
 }

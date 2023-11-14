@@ -1,16 +1,8 @@
 //! Ensures that `Pod`s are configured and running for each [`HelloCluster`]
-use crate::operations::pdb::add_pdbs;
-use crate::product_logging::{extend_role_group_config_map, resolve_vector_aggregator_address};
-use crate::OPERATOR_NAME;
-
-use crate::crd::{
-    Container, HelloCluster, HelloClusterStatus, HelloConfig, HelloRole, APPLICATION_PROPERTIES,
-    APP_NAME, HTTP_PORT, HTTP_PORT_NAME, JVM_SECURITY_PROPERTIES, STACKABLE_CONFIG_DIR,
-    STACKABLE_CONFIG_DIR_NAME, STACKABLE_LOG_CONFIG_MOUNT_DIR, STACKABLE_LOG_CONFIG_MOUNT_DIR_NAME,
-    STACKABLE_LOG_DIR, STACKABLE_LOG_DIR_NAME,
+use product_config::{
+    self, types::PropertyNameKind, writer::to_java_properties_string, ProductConfigManager,
 };
 use snafu::{OptionExt, ResultExt, Snafu};
-use stackable_operator::role_utils::GenericRoleConfig;
 use stackable_operator::{
     builder::{
         resources::ResourceRequirementsBuilder, ConfigMapBuilder, ContainerBuilder,
@@ -33,21 +25,21 @@ use stackable_operator::{
     labels::{role_group_selector_labels, role_selector_labels, ObjectLabels},
     logging::controller::ReconcilerError,
     memory::{BinaryMultiple, MemoryQuantity},
-    product_config::writer::to_java_properties_string,
-    product_config::{types::PropertyNameKind, ProductConfigManager},
     product_config_utils::{transform_all_roles_to_config, validate_all_roles_and_groups_config},
     product_logging::{
         self,
+        framework::{create_vector_shutdown_file_command, remove_vector_shutdown_file_command},
         spec::{
             ConfigMapLogConfig, ContainerLogConfig, ContainerLogConfigChoice,
             CustomContainerLogConfig,
         },
     },
-    role_utils::RoleGroupRef,
+    role_utils::{GenericRoleConfig, RoleGroupRef},
     status::condition::{
         compute_conditions, operations::ClusterOperationsConditionBuilder,
         statefulset::StatefulSetConditionBuilder,
     },
+    utils::COMMON_BASH_TRAP_FUNCTIONS,
 };
 use std::{
     borrow::Cow,
@@ -57,6 +49,16 @@ use std::{
 };
 use strum::EnumDiscriminants;
 use tracing::warn;
+
+use crate::crd::{
+    Container, HelloCluster, HelloClusterStatus, HelloConfig, HelloRole, APPLICATION_PROPERTIES,
+    APP_NAME, HTTP_PORT, HTTP_PORT_NAME, JVM_SECURITY_PROPERTIES, STACKABLE_CONFIG_DIR,
+    STACKABLE_CONFIG_DIR_NAME, STACKABLE_LOG_CONFIG_MOUNT_DIR, STACKABLE_LOG_CONFIG_MOUNT_DIR_NAME,
+    STACKABLE_LOG_DIR, STACKABLE_LOG_DIR_NAME,
+};
+use crate::operations::{graceful_shutdown::add_graceful_shutdown_config, pdb::add_pdbs};
+use crate::product_logging::{extend_role_group_config_map, resolve_vector_aggregator_address};
+use crate::OPERATOR_NAME;
 
 pub const HELLO_CONTROLLER_NAME: &str = "hellocluster";
 const DOCKER_IMAGE_BASE_NAME: &str = "hello";
@@ -83,10 +85,6 @@ pub enum Error {
     NoServerRole,
     #[snafu(display("failed to calculate global service name"))]
     GlobalServiceNameNotFound,
-    #[snafu(display("failed to calculate service name for role {rolegroup}"))]
-    RoleGroupServiceNameNotFound {
-        rolegroup: RoleGroupRef<HelloCluster>,
-    },
     #[snafu(display("failed to apply global Service"))]
     ApplyRoleService {
         source: stackable_operator::error::Error,
@@ -98,7 +96,7 @@ pub enum Error {
     },
     #[snafu(display("failed to format runtime properties"))]
     PropertiesWriteError {
-        source: stackable_operator::product_config::writer::PropertiesWriterError,
+        source: product_config::writer::PropertiesWriterError,
     },
     #[snafu(display("failed to build ConfigMap for {rolegroup}"))]
     BuildRoleGroupConfig {
@@ -127,21 +125,8 @@ pub enum Error {
     ObjectMissingMetadataForOwnerRef {
         source: stackable_operator::error::Error,
     },
-    #[snafu(display("failed to apply discovery ConfigMap"))]
-    ApplyDiscoveryConfig {
-        source: stackable_operator::error::Error,
-    },
     #[snafu(display("failed to update status"))]
     ApplyStatus {
-        source: stackable_operator::error::Error,
-    },
-    #[snafu(display("failed to parse db type {db_type}"))]
-    InvalidDbType {
-        source: strum::ParseError,
-        db_type: String,
-    },
-    #[snafu(display("failed to resolve S3 connection"))]
-    ResolveS3Connection {
         source: stackable_operator::error::Error,
     },
     #[snafu(display("failed to resolve and merge resource config for role and role group"))]
@@ -185,12 +170,16 @@ pub enum Error {
         rolegroup
     ))]
     JvmSecurityProperties {
-        source: stackable_operator::product_config::writer::PropertiesWriterError,
+        source: product_config::writer::PropertiesWriterError,
         rolegroup: String,
     },
     #[snafu(display("failed to create PodDisruptionBudget"))]
     FailedToCreatePdb {
         source: crate::operations::pdb::Error,
+    },
+    #[snafu(display("failed to configure graceful shutdown"))]
+    GracefulShutdown {
+        source: crate::operations::graceful_shutdown::Error,
     },
 }
 type Result<T, E = Error> = std::result::Result<T, E>;
@@ -552,15 +541,26 @@ fn build_server_rolegroup_statefulset(
     }
 
     let command = vec![
-        format!("java"),
-        format!("-Djava.security.properties={STACKABLE_CONFIG_DIR}/{JVM_SECURITY_PROPERTIES}"),
-        format!("-jar"),
-        format!("hello-world.jar"),
+        // graceful shutdown part
+        COMMON_BASH_TRAP_FUNCTIONS.to_string(),
+        remove_vector_shutdown_file_command(STACKABLE_LOG_DIR),
+        "prepare_signal_handlers".to_string(),
+        // run process
+        format!("java -Djava.security.properties={STACKABLE_CONFIG_DIR}/{JVM_SECURITY_PROPERTIES} -jar hello-world.jar &"),
+        // graceful shutdown part
+        "wait_for_termination $!".to_string(),
+        create_vector_shutdown_file_command(STACKABLE_LOG_DIR),
     ];
-    let mut pod_builder = PodBuilder::new();
 
     let container_hello = container_builder
-        .command(command)
+        .command(vec![
+            "/bin/bash".to_string(),
+            "-x".to_string(),
+            "-euo".to_string(),
+            "pipefail".to_string(),
+            "-c".to_string(),
+        ])
+        .args(vec![command.join("\n")])
         .image_from_product_image(resolved_product_image)
         .add_volume_mount(STACKABLE_CONFIG_DIR_NAME, STACKABLE_CONFIG_DIR)
         .add_volume_mount(STACKABLE_LOG_DIR_NAME, STACKABLE_LOG_DIR)
@@ -590,6 +590,9 @@ fn build_server_rolegroup_statefulset(
             ..Probe::default()
         })
         .build();
+
+    let mut pod_builder = PodBuilder::new();
+    add_graceful_shutdown_config(merged_config, &mut pod_builder).context(GracefulShutdownSnafu)?;
 
     pod_builder
         .metadata_builder(|m| {
