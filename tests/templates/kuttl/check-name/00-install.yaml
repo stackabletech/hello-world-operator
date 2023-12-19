@@ -7,6 +7,7 @@ spec:
   image:
     custom: docker.stackable.tech/stackable/hello-world:0.0.1-SNAPSHOT-stackable0.0.0-dev
     productVersion: 0.0.1
+    pullPolicy: IfNotPresent
   recipient: "Stackable"
   color: "blue"
   clusterConfig:
