@@ -9,7 +9,8 @@
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-green.svg)](https://docs.stackable.tech/home/stable/contributor/index.html)
 [![License OSL3.0](https://img.shields.io/badge/license-OSL3.0-green)](./LICENSE)
 
-[Documentation](https://docs.stackable.tech/hello-world/stable/index.html) | [Stackable Data Platform](https://stackable.tech/) | [Platform Docs](https://docs.stackable.tech/) | [Discussions](https://github.com/orgs/stackabletech/discussions) | [Discord](https://discord.gg/7kZ3BNnCAF)
+[Documentation](https://docs.stackable.tech/home/stable/hello-world) | [Stackable Data Platform](https://stackable.tech/) | [Platform Docs](https://docs.stackable.tech/) | [Discussions](https://github.com/orgs/stackabletech/discussions) | [Discord](https://discord.gg/7kZ3BNnCAF)
+
 
 This is a an example Kubernetes operator that runs a simple nginx instance. It serves as documentation of how a Stackable Operator works and it can also be a good starting point for building a new Operator.
 
