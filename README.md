@@ -32,7 +32,6 @@ Connect:
 
 reachable at localhost:8080
 
-
 ## About The Stackable Data Platform
 
 This operator is written and maintained by [Stackable](https://stackable.tech) and it is part of a larger data platform.
