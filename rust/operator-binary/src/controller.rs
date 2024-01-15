@@ -22,7 +22,7 @@ use stackable_operator::{
         DeepMerge,
     },
     kube::{runtime::controller::Action, Resource, ResourceExt},
-    labels::{role_group_selector_labels, role_selector_labels, ObjectLabels},
+    kvp::{Labels, ObjectLabels},
     logging::controller::ReconcilerError,
     memory::{BinaryMultiple, MemoryQuantity},
     product_config_utils::{transform_all_roles_to_config, validate_all_roles_and_groups_config},
@@ -181,6 +181,22 @@ pub enum Error {
     GracefulShutdown {
         source: crate::operations::graceful_shutdown::Error,
     },
+
+    #[snafu(display("failed to build Labels"))]
+    LabelBuild {
+        source: stackable_operator::kvp::LabelError,
+    },
+
+    #[snafu(display("failed to build Metadata"))]
+    MetadataBuild {
+        source: stackable_operator::builder::ObjectMetaBuilderError,
+    },
+
+    #[snafu(display("failed to get required Labels"))]
+    GetRequiredLabels {
+        source:
+            stackable_operator::kvp::KeyValuePairError<stackable_operator::kvp::LabelValueError>,
+    },
 }
 type Result<T, E = Error> = std::result::Result<T, E>;
 
@@ -241,7 +257,9 @@ pub async fn reconcile_hello(hello: Arc<HelloCluster>, ctx: Arc<Ctx>) -> Result<
     let (rbac_sa, rbac_rolebinding) = build_rbac_resources(
         hello.as_ref(),
         APP_NAME,
-        cluster_resources.get_required_labels(),
+        cluster_resources
+            .get_required_labels()
+            .context(GetRequiredLabelsSnafu)?,
     )
     .context(BuildRbacResourcesSnafu)?;
 
@@ -372,11 +390,16 @@ pub fn build_server_role_service(
                 &role_name,
                 "global",
             ))
+            .context(MetadataBuildSnafu)?
             .build(),
         spec: Some(ServiceSpec {
             type_: Some(hello.spec.cluster_config.listener_class.k8s_service_type()),
             ports: Some(service_ports()),
-            selector: Some(role_selector_labels(hello, APP_NAME, &role_name)),
+            selector: Some(
+                Labels::role_selector(hello, APP_NAME, &role_name)
+                    .context(LabelBuildSnafu)?
+                    .into(),
+            ),
             ..ServiceSpec::default()
         }),
         status: None,
@@ -433,6 +456,7 @@ fn build_server_rolegroup_config_map(
                     &rolegroup.role,
                     &rolegroup.role_group,
                 ))
+                .context(MetadataBuildSnafu)?
                 .build(),
         )
         .add_data(APPLICATION_PROPERTIES, application_properties)
@@ -482,18 +506,23 @@ fn build_rolegroup_service(
                 &rolegroup.role,
                 &rolegroup.role_group,
             ))
+            .context(MetadataBuildSnafu)?
             .build(),
         spec: Some(ServiceSpec {
             // Internal communication does not need to be exposed
             type_: Some("ClusterIP".to_string()),
             cluster_ip: Some("None".to_string()),
             ports: Some(service_ports()),
-            selector: Some(role_group_selector_labels(
-                hello,
-                APP_NAME,
-                &rolegroup.role,
-                &rolegroup.role_group,
-            )),
+            selector: Some(
+                Labels::role_group_selector(
+                    hello,
+                    APP_NAME,
+                    &rolegroup.role,
+                    &rolegroup.role_group,
+                )
+                .context(LabelBuildSnafu)?
+                .into(),
+            ),
             publish_not_ready_addresses: Some(true),
             ..ServiceSpec::default()
         }),
@@ -594,15 +623,18 @@ fn build_server_rolegroup_statefulset(
     let mut pod_builder = PodBuilder::new();
     add_graceful_shutdown_config(merged_config, &mut pod_builder).context(GracefulShutdownSnafu)?;
 
+    let metadata = ObjectMetaBuilder::new()
+        .with_recommended_labels(build_recommended_labels(
+            hello,
+            &resolved_product_image.app_version_label,
+            &role_group_ref.role,
+            &role_group_ref.role_group,
+        ))
+        .context(MetadataBuildSnafu)?
+        .build();
+
     pod_builder
-        .metadata_builder(|m| {
-            m.with_recommended_labels(build_recommended_labels(
-                hello,
-                &resolved_product_image.app_version_label,
-                &role_group_ref.role,
-                &role_group_ref.role_group,
-            ))
-        })
+        .metadata(metadata)
         .image_pull_secrets_from_product_image(resolved_product_image)
         .add_container(container_hello)
         .add_volume(stackable_operator::k8s_openapi::api::core::v1::Volume {
@@ -691,17 +723,22 @@ fn build_server_rolegroup_statefulset(
                 &role_group_ref.role,
                 &role_group_ref.role_group,
             ))
+            .context(MetadataBuildSnafu)?
             .build(),
         spec: Some(StatefulSetSpec {
             pod_management_policy: Some("Parallel".to_string()),
             replicas: role_group.replicas.map(i32::from),
             selector: LabelSelector {
-                match_labels: Some(role_group_selector_labels(
-                    hello,
-                    APP_NAME,
-                    &role_group_ref.role,
-                    &role_group_ref.role_group,
-                )),
+                match_labels: Some(
+                    Labels::role_group_selector(
+                        hello,
+                        APP_NAME,
+                        &role_group_ref.role,
+                        &role_group_ref.role_group,
+                    )
+                    .context(LabelBuildSnafu)?
+                    .into(),
+                ),
                 ..LabelSelector::default()
             },
             service_name: role_group_ref.object_name(),

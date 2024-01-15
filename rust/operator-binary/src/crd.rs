@@ -453,13 +453,6 @@ impl HelloCluster {
         let role_group = self.role_group(rolegroup_ref)?;
         let mut conf_role_group = role_group.config.config.to_owned();
 
-        if let Some(selector) = &role_group.selector {
-            // Migrate old `selector` attribute, see ADR 26 affinities.
-            // TODO Can be removed after support for the old `selector` field is dropped.
-            #[allow(deprecated)]
-            conf_role_group.affinity.add_legacy_selector(selector);
-        }
-
         // Merge more specific configs into default config
         // Hierarchy is:
         // 1. RoleGroup
