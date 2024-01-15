@@ -11,7 +11,6 @@
 
 [Documentation](https://docs.stackable.tech/home/stable/hello-world) | [Stackable Data Platform](https://stackable.tech/) | [Platform Docs](https://docs.stackable.tech/) | [Discussions](https://github.com/orgs/stackabletech/discussions) | [Discord](https://discord.gg/7kZ3BNnCAF)
 
-
 This is a an example Kubernetes operator that runs a simple nginx instance. It serves as documentation of how a Stackable Operator works and it can also be a good starting point for building a new Operator.
 
 Unlike the other stackable Operators, this one is not installable with Helm or stackablectl, as it is only for educational purposes.
