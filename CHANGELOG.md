@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- Helm: support labels in values.yaml ([#48]).
+
+[#48]: https://github.com/stackabletech/hello-world-operator/pull/48
+
 ## [23.11.0] - 2023-11-24
 
 ### Added
