@@ -128,7 +128,6 @@ jobs:
       - uses: dtolnay/rust-toolchain@be73d7920c329f220ce78e0234b8f96b7ae60248
         with:
           toolchain: ${{ env.RUST_TOOLCHAIN_VERSION }}
-        with:
           components: rustfmt
       - run: cargo fmt --all -- --check
 
@@ -147,7 +146,6 @@ jobs:
       - uses: dtolnay/rust-toolchain@be73d7920c329f220ce78e0234b8f96b7ae60248
         with:
           toolchain: ${{ env.RUST_TOOLCHAIN_VERSION }}
-        with:
           components: clippy
       - uses: Swatinem/rust-cache@3cf7f8cc28d1b4e7d01e3783be10a97d55d483c8 # v2.7.1
         with:
@@ -184,7 +182,6 @@ jobs:
       - uses: dtolnay/rust-toolchain@be73d7920c329f220ce78e0234b8f96b7ae60248
         with:
           toolchain: ${{ env.RUST_TOOLCHAIN_VERSION }}
-        with:
           components: rustfmt
       - uses: Swatinem/rust-cache@3cf7f8cc28d1b4e7d01e3783be10a97d55d483c8 # v2.7.1
         with:
@@ -334,7 +331,6 @@ jobs:
       - uses: dtolnay/rust-toolchain@be73d7920c329f220ce78e0234b8f96b7ae60248
         with:
           toolchain: ${{ env.RUST_TOOLCHAIN_VERSION }}
-        with:
           components: rustfmt
         # This step checks if the current run was triggered by a push to a pr (or a pr being created).
         # If this is the case it changes the version of this project in all Cargo.toml files to include the suffix
