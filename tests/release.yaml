@@ -7,4 +7,4 @@ releases:
     description: Integration test
     products:
       hello-world:
-        operatorVersion: 0.0.0-dev
+        operatorVersion: 24.3.0
