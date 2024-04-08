@@ -87,7 +87,7 @@ pub enum Error {
     )
 )]
 pub struct HelloClusterSpec {
-    /// General Hive metastore cluster settings
+    /// General Hello World cluster settings
     pub cluster_config: HelloClusterConfig,
     /// Cluster operations like pause reconciliation or cluster stop.
     #[serde(default)]
