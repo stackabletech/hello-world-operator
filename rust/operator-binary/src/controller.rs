@@ -81,7 +81,7 @@ pub enum Error {
     InternalOperatorFailure { source: crate::crd::Error },
     #[snafu(display("object defines no namespace"))]
     ObjectHasNoNamespace,
-    #[snafu(display("object defines no metastore role"))]
+    #[snafu(display("object defines no hello role"))]
     NoServerRole,
     #[snafu(display("failed to calculate global service name"))]
     GlobalServiceNameNotFound,
@@ -539,7 +539,7 @@ fn build_server_rolegroup_statefulset(
     resolved_product_image: &ResolvedProductImage,
     hello_role: &HelloRole,
     role_group_ref: &RoleGroupRef<HelloCluster>,
-    metastore_config: &HashMap<PropertyNameKind, BTreeMap<String, String>>,
+    rolegroup_config: &HashMap<PropertyNameKind, BTreeMap<String, String>>,
     merged_config: &HelloConfig,
     sa_name: &str,
 ) -> Result<StatefulSet> {
@@ -556,7 +556,7 @@ fn build_server_rolegroup_statefulset(
             name: APP_NAME.to_string(),
         })?;
 
-    for (property_name_kind, config) in metastore_config {
+    for (property_name_kind, config) in rolegroup_config {
         if property_name_kind == &PropertyNameKind::Env {
             // overrides
             for (property_name, property_value) in config {

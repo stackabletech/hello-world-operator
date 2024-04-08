@@ -25,7 +25,7 @@ spec:
             spec:
               properties:
                 clusterConfig:
-                  description: General Hive metastore cluster settings
+                  description: General Hello World cluster settings
                   properties:
                     listenerClass:
                       default: cluster-internal

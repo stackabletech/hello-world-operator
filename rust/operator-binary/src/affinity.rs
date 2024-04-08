@@ -39,7 +39,7 @@ mod tests {
     #[case(HelloRole::Server)]
     fn test_affinity_defaults(#[case] role: HelloRole) {
         let input = r#"
-        apiVersion: hive.stackable.tech/v1alpha1
+        apiVersion: hello.stackable.tech/v1alpha1
         kind: HelloCluster
         metadata:
           name: hello-world
