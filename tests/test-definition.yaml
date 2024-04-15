@@ -8,10 +8,21 @@ dimensions:
     values:
       - "true"
       - "false"
+  - name: openshift
+    values:
+      - "false"
 tests:
   - name: smoke
-    dimensions: {}  # no dependencies in this test
+    dimensions:
+      - openshift
   - name: check-name
-    dimensions: {}  # no dependencies in this test
+    dimensions:
+      - openshift
 suites:
   - name: nightly
+  - name: openshift
+    patch:
+      - dimensions:
+          - expr: last
+          - name: openshift
+            expr: "true"
