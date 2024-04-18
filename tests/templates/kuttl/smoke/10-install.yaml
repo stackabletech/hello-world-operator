@@ -24,7 +24,7 @@ spec:
         podOverrides:
           spec:
             containers:
-              - name: hello
+              - name: hello-world
                 resources:
                   requests:
                     cpu: 110m

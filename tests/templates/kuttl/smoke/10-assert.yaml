@@ -12,7 +12,7 @@ spec:
     spec:
       terminationGracePeriodSeconds: 120
       containers:
-        - name: hello
+        - name: hello-world
           resources:
             requests:
               cpu: 110m
