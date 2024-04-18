@@ -30,7 +30,7 @@ use strum::{Display, EnumIter, EnumString, IntoEnumIterator};
 
 use crate::affinity::get_affinity;
 
-pub const APP_NAME: &str = "hello";
+pub const APP_NAME: &str = "hello-world";
 // directories
 pub const STACKABLE_CONFIG_DIR: &str = "/stackable/config";
 pub const STACKABLE_CONFIG_DIR_NAME: &str = "config";
@@ -73,11 +73,11 @@ pub enum Error {
 #[derive(Clone, CustomResource, Debug, Deserialize, JsonSchema, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 #[kube(
-    group = "hello.stackable.tech",
+    group = "hello-world.stackable.tech",
     version = "v1alpha1",
     kind = "HelloCluster",
-    plural = "helloclusters",
-    shortname = "hello",
+    plural = "hello-world-clusters",
+    shortname = "hello-world",
     status = "HelloClusterStatus",
     namespaced,
     crates(

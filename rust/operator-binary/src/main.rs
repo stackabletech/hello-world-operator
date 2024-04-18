@@ -62,7 +62,7 @@ async fn main() -> anyhow::Result<()> {
 
             let product_config = product_config.load(&[
                 "deploy/config-spec/properties.yaml",
-                "/etc/stackable/hello-operator/config-spec/properties.yaml",
+                "/etc/stackable/hello-world-operator/config-spec/properties.yaml",
             ])?;
 
             let client =

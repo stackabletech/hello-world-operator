@@ -93,7 +93,7 @@ rules:
   - apiGroups:
       - {{ include "operator.name" . }}.stackable.tech
     resources:
-      - {{ include "operator.name" . }}clusters
+      - {{ include "operator.name" . }}-clusters
     verbs:
       - get
       - list
@@ -102,7 +102,7 @@ rules:
   - apiGroups:
       - {{ include "operator.name" . }}.stackable.tech
     resources:
-      - {{ include "operator.name" . }}clusters/status
+      - {{ include "operator.name" . }}-clusters/status
     verbs:
       - patch
   - apiGroups:

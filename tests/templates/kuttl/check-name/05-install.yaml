@@ -1,5 +1,5 @@
 ---
-apiVersion: hello.stackable.tech/v1alpha1
+apiVersion: hello-world.stackable.tech/v1alpha1
 kind: HelloCluster
 metadata:
   name: hello-world

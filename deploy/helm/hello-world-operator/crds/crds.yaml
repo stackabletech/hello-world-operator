@@ -2,17 +2,17 @@
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
-  name: helloclusters.hello.stackable.tech
+  name: hello-world-clusters.hello-world.stackable.tech
   annotations:
     helm.sh/resource-policy: keep
 spec:
-  group: hello.stackable.tech
+  group: hello-world.stackable.tech
   names:
     categories: []
     kind: HelloCluster
-    plural: helloclusters
+    plural: hello-world-clusters
     shortNames:
-      - hello
+      - hello-world
     singular: hellocluster
   scope: Namespaced
   versions:

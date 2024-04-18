@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed
+
+- Remove the "nameOverride" chart property and make naming of k8s objects
+  consistent with other operators ([#78]).
+
+[#78]: https://github.com/stackabletech/hello-world-operator/pull/78
+
 ## [24.3.0] - 2024-03-20
 
 ### Added
