@@ -39,7 +39,7 @@ mod tests {
     #[case(HelloRole::Server)]
     fn test_affinity_defaults(#[case] role: HelloRole) {
         let input = r#"
-        apiVersion: hello.stackable.tech/v1alpha1
+        apiVersion: hello-world.stackable.tech/v1alpha1
         kind: HelloCluster
         metadata:
           name: hello-world
@@ -71,7 +71,10 @@ mod tests {
                                 label_selector: Some(LabelSelector {
                                     match_expressions: None,
                                     match_labels: Some(BTreeMap::from([
-                                        ("app.kubernetes.io/name".to_string(), "hello".to_string(),),
+                                        (
+                                            "app.kubernetes.io/name".to_string(),
+                                            "hello-world".to_string(),
+                                        ),
                                         (
                                             "app.kubernetes.io/instance".to_string(),
                                             "hello-world".to_string(),
