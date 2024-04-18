@@ -73,11 +73,11 @@ pub enum Error {
 #[derive(Clone, CustomResource, Debug, Deserialize, JsonSchema, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 #[kube(
-    group = "hello.stackable.tech",
+    group = "hello-world.stackable.tech",
     version = "v1alpha1",
     kind = "HelloCluster",
-    plural = "helloclusters",
-    shortname = "hello",
+    plural = "hello-world-clusters",
+    shortname = "hello-world",
     status = "HelloClusterStatus",
     namespaced,
     crates(
