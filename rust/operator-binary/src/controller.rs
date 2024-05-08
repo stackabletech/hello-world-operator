@@ -569,7 +569,7 @@ fn build_server_rolegroup_statefulset(
         }
     }
 
-    let command = vec![
+    let command = [
         // graceful shutdown part
         COMMON_BASH_TRAP_FUNCTIONS.to_string(),
         remove_vector_shutdown_file_command(STACKABLE_LOG_DIR),
