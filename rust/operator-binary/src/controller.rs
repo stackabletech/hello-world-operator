@@ -5,8 +5,9 @@ use product_config::{
 use snafu::{OptionExt, ResultExt, Snafu};
 use stackable_operator::{
     builder::{
-        resources::ResourceRequirementsBuilder, ConfigMapBuilder, ContainerBuilder,
-        ObjectMetaBuilder, PodBuilder,
+        configmap::ConfigMapBuilder,
+        meta::ObjectMetaBuilder,
+        pod::{container::ContainerBuilder, resources::ResourceRequirementsBuilder, PodBuilder},
     },
     cluster_resources::{ClusterResourceApplyStrategy, ClusterResources},
     commons::{product_image_selection::ResolvedProductImage, rbac::build_rbac_resources},
@@ -87,11 +88,11 @@ pub enum Error {
     GlobalServiceNameNotFound,
     #[snafu(display("failed to apply global Service"))]
     ApplyRoleService {
-        source: stackable_operator::error::Error,
+        source: stackable_operator::cluster_resources::Error,
     },
     #[snafu(display("failed to apply Service for {rolegroup}"))]
     ApplyRoleGroupService {
-        source: stackable_operator::error::Error,
+        source: stackable_operator::cluster_resources::Error,
         rolegroup: RoleGroupRef<HelloCluster>,
     },
     #[snafu(display("failed to format runtime properties"))]
@@ -100,49 +101,49 @@ pub enum Error {
     },
     #[snafu(display("failed to build ConfigMap for {rolegroup}"))]
     BuildRoleGroupConfig {
-        source: stackable_operator::error::Error,
+        source: stackable_operator::builder::configmap::Error,
         rolegroup: RoleGroupRef<HelloCluster>,
     },
     #[snafu(display("failed to apply ConfigMap for {rolegroup}"))]
     ApplyRoleGroupConfig {
-        source: stackable_operator::error::Error,
+        source: stackable_operator::cluster_resources::Error,
         rolegroup: RoleGroupRef<HelloCluster>,
     },
     #[snafu(display("failed to apply StatefulSet for {rolegroup}"))]
     ApplyRoleGroupStatefulSet {
-        source: stackable_operator::error::Error,
+        source: stackable_operator::cluster_resources::Error,
         rolegroup: RoleGroupRef<HelloCluster>,
     },
     #[snafu(display("failed to generate product config"))]
     GenerateProductConfig {
-        source: stackable_operator::product_config_utils::ConfigError,
+        source: stackable_operator::product_config_utils::Error,
     },
     #[snafu(display("invalid product config"))]
     InvalidProductConfig {
-        source: stackable_operator::error::Error,
+        source: stackable_operator::product_config_utils::Error,
     },
     #[snafu(display("object is missing metadata to build owner reference"))]
     ObjectMissingMetadataForOwnerRef {
-        source: stackable_operator::error::Error,
+        source: stackable_operator::builder::meta::Error,
     },
     #[snafu(display("failed to update status"))]
     ApplyStatus {
-        source: stackable_operator::error::Error,
+        source: stackable_operator::client::Error,
     },
     #[snafu(display("failed to resolve and merge resource config for role and role group"))]
     FailedToResolveResourceConfig { source: crate::crd::Error },
     #[snafu(display("failed to create hello container [{name}]"))]
     FailedToCreateHelloContainer {
-        source: stackable_operator::error::Error,
+        source: stackable_operator::builder::pod::container::Error,
         name: String,
     },
     #[snafu(display("failed to create cluster resources"))]
     CreateClusterResources {
-        source: stackable_operator::error::Error,
+        source: stackable_operator::cluster_resources::Error,
     },
     #[snafu(display("failed to delete orphaned resources"))]
     DeleteOrphanedResources {
-        source: stackable_operator::error::Error,
+        source: stackable_operator::cluster_resources::Error,
     },
     #[snafu(display("failed to resolve the Vector aggregator address"))]
     ResolveVectorAggregatorAddress {
@@ -155,15 +156,15 @@ pub enum Error {
     },
     #[snafu(display("failed to patch service account"))]
     ApplyServiceAccount {
-        source: stackable_operator::error::Error,
+        source: stackable_operator::cluster_resources::Error,
     },
     #[snafu(display("failed to patch role binding"))]
     ApplyRoleBinding {
-        source: stackable_operator::error::Error,
+        source: stackable_operator::cluster_resources::Error,
     },
     #[snafu(display("failed to build RBAC resources"))]
     BuildRbacResources {
-        source: stackable_operator::error::Error,
+        source: stackable_operator::commons::rbac::Error,
     },
     #[snafu(display(
         "failed to serialize [{JVM_SECURITY_PROPERTIES}] for group {}",
@@ -189,7 +190,7 @@ pub enum Error {
 
     #[snafu(display("failed to build Metadata"))]
     MetadataBuild {
-        source: stackable_operator::builder::ObjectMetaBuilderError,
+        source: stackable_operator::builder::meta::Error,
     },
 
     #[snafu(display("failed to get required Labels"))]
@@ -569,7 +570,7 @@ fn build_server_rolegroup_statefulset(
         }
     }
 
-    let command = vec![
+    let command = [
         // graceful shutdown part
         COMMON_BASH_TRAP_FUNCTIONS.to_string(),
         remove_vector_shutdown_file_command(STACKABLE_LOG_DIR),
