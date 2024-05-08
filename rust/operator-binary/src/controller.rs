@@ -213,7 +213,7 @@ pub async fn reconcile_hello(hello: Arc<HelloCluster>, ctx: Arc<Ctx>) -> Result<
     let resolved_product_image: ResolvedProductImage = hello
         .spec
         .image
-        .resolve(DOCKER_IMAGE_BASE_NAME, crate::built_info::CARGO_PKG_VERSION);
+        .resolve(DOCKER_IMAGE_BASE_NAME, crate::built_info::PKG_VERSION);
     let hello_role = HelloRole::Server;
 
     let validated_config = validate_all_roles_and_groups_config(

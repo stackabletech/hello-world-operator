@@ -23,8 +23,6 @@ use std::sync::Arc;
 
 mod built_info {
     include!(concat!(env!("OUT_DIR"), "/built.rs"));
-    pub const TARGET_PLATFORM: Option<&str> = option_env!("TARGET");
-    pub const CARGO_PKG_VERSION: &str = env!("CARGO_PKG_VERSION");
 }
 
 const OPERATOR_NAME: &str = "hello.stackable.tech";
@@ -40,7 +38,7 @@ struct Opts {
 async fn main() -> anyhow::Result<()> {
     let opts = Opts::parse();
     match opts.cmd {
-        Command::Crd => HelloCluster::print_yaml_schema(built_info::CARGO_PKG_VERSION)?,
+        Command::Crd => HelloCluster::print_yaml_schema(built_info::PKG_VERSION)?,
         Command::Run(ProductOperatorRun {
             product_config,
             watch_namespace,
@@ -55,7 +53,7 @@ async fn main() -> anyhow::Result<()> {
                 crate_description!(),
                 crate_version!(),
                 built_info::GIT_VERSION,
-                built_info::TARGET_PLATFORM.unwrap_or("unknown target"),
+                built_info::TARGET,
                 built_info::BUILT_TIME_UTC,
                 built_info::RUSTC_VERSION,
             );
