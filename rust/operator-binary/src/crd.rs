@@ -18,7 +18,7 @@ use stackable_operator::{
     config::{fragment, fragment::Fragment, fragment::ValidationError, merge::Merge},
     k8s_openapi::apimachinery::pkg::api::resource::Quantity,
     kube::{runtime::reflector::ObjectRef, CustomResource, ResourceExt},
-    product_config_utils::{ConfigError, Configuration},
+    product_config_utils::{self, Configuration},
     product_logging::{self, spec::Logging},
     role_utils::{GenericRoleConfig, Role, RoleGroup, RoleGroupRef},
     schemars::{self, JsonSchema},
@@ -300,7 +300,7 @@ impl Configuration for HelloConfigFragment {
         &self,
         _hello: &Self::Configurable,
         _role_name: &str,
-    ) -> Result<BTreeMap<String, Option<String>>, ConfigError> {
+    ) -> Result<BTreeMap<String, Option<String>>, product_config_utils::Error> {
         let result = BTreeMap::new();
         // no ENV args necessary
         Ok(result)
@@ -310,7 +310,7 @@ impl Configuration for HelloConfigFragment {
         &self,
         _hello: &Self::Configurable,
         _role_name: &str,
-    ) -> Result<BTreeMap<String, Option<String>>, ConfigError> {
+    ) -> Result<BTreeMap<String, Option<String>>, product_config_utils::Error> {
         let result = BTreeMap::new();
         // No CLI args necessary
         Ok(result)
@@ -321,7 +321,7 @@ impl Configuration for HelloConfigFragment {
         hello: &Self::Configurable,
         _role_name: &str,
         file: &str,
-    ) -> Result<BTreeMap<String, Option<String>>, ConfigError> {
+    ) -> Result<BTreeMap<String, Option<String>>, product_config_utils::Error> {
         let mut result = BTreeMap::new();
 
         if file == APPLICATION_PROPERTIES {
