@@ -1,4 +1,11 @@
 //! Ensures that `Pod`s are configured and running for each [`HelloCluster`]
+use std::{
+    borrow::Cow,
+    collections::{BTreeMap, HashMap},
+    sync::Arc,
+    time::Duration,
+};
+
 use product_config::{
     self, types::PropertyNameKind, writer::to_java_properties_string, ProductConfigManager,
 };
@@ -41,12 +48,6 @@ use stackable_operator::{
         statefulset::StatefulSetConditionBuilder,
     },
     utils::COMMON_BASH_TRAP_FUNCTIONS,
-};
-use std::{
-    borrow::Cow,
-    collections::{BTreeMap, HashMap},
-    sync::Arc,
-    time::Duration,
 };
 use strum::EnumDiscriminants;
 use tracing::warn;
