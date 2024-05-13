@@ -412,7 +412,7 @@ jobs:
     name: Run the OpenShift Preflight check on the published images
     if: ${{ !github.event.pull_request.head.repo.fork }}
     needs:
-      - package_and_publish
+      - create_manifest_list
     runs-on: ubuntu-latest
     env:
       IMAGE_TAG: ${{ needs.package_and_publish.outputs.IMAGE_TAG }}
