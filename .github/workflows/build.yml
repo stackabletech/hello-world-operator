@@ -413,6 +413,7 @@ jobs:
     if: ${{ !github.event.pull_request.head.repo.fork }}
     needs:
       - create_manifest_list
+      - package_and_publish
     runs-on: ubuntu-latest
     env:
       IMAGE_TAG: ${{ needs.package_and_publish.outputs.IMAGE_TAG }}
