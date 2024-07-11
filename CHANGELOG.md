@@ -8,7 +8,7 @@ All notable changes to this project will be documented in this file.
 
 - Remove the "nameOverride" chart property and make naming of k8s objects
   consistent with other operators ([#78]).
-- Bump `stackable-operator` to `0.70.0`, `product-config` to `0.7.0`, and other dependencies  ([#104]).
+- Bump `stackable-operator` to `0.70.0`, `product-config` to `0.7.0`, and other dependencies ([#104]).
 
 [#78]: https://github.com/stackabletech/hello-world-operator/pull/78
 [#104]: https://github.com/stackabletech/hello-world-operator/pull/104
