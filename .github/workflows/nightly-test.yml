@@ -35,13 +35,19 @@ jobs:
       # Run the test/test-suite below. Currently this assumes a fixed list, but would need improvements if we want to make it more dynamic
       # Perhaps a preparation step can be run to determine if it is a suite or test (via ./tests/test-definition.yaml)
 
-      - if: inputs.test == 'openshift'
-        run: echo "is openshift with PARALLEL=${PARALLEL}"
+      # TODO (@NickLarsenNZ): We could make beku tell us which suites and tests are available.
+      # So we can see if the input.test is a --test or a --test-suite. And if the label has openshift we need to spin up one.
 
-      - if: inputs.test != 'openshift' && inputs.test == 'smoke'
+      - if: inputs.test == 'smoke'
+        name: ${{ inputs.test }} test 
         run: echo "not openshift and is smoke test with PARALLEL=${PARALLEL}"
         # run: nix-shell --run "./scripts/run-tests --test '$TEST' --parallel '${PARALLEL}'"
 
       - if: inputs.test != 'openshift' && inputs.test != 'smoke'
+        name: ${{ inputs.test }} test suite
         run: echo "not openshift and is the ${TEST} suite with PARALLEL=${PARALLEL}"
         # run: nix-shell --run "./scripts/run-tests --test-suite '$TEST' --parallel '${PARALLEL}'"
+
+      - if: inputs.test == 'openshift'
+        name: ${{ inputs.test }} test suite
+        run: echo "is openshift with PARALLEL=${PARALLEL}"
