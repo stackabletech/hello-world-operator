@@ -1,0 +1,13 @@
+---
+# This is an example workflow that will then be moved to operator-templating
+name: Nightly test
+
+on:
+  workflow_dispatch:
+
+jobs:
+  placeholder:
+    name: placeholder
+    runs-on: ubuntu-latest
+    steps:
+    - run: echo hello world
