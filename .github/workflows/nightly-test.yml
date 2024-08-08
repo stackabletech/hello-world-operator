@@ -31,28 +31,34 @@ jobs:
       - uses: helm/kind-action@0025e74a8c7512023d06dc019c617aa3cf561fde # v1.10.0
       - uses: cachix/install-nix-action@ba0dd844c9180cbf77aa72a116d6fbc515d0e87b # tag=v27
       - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
-      - run: |
+      - name: Install stackablectl
+        run: |
           # TODO (@NickLarsenNZ): Interpolate stackablectl version
+          set -x
           STACKABLECTL="$(mktemp -d)/stackablectl"
           curl -L -o "$STACKABLECTL" https://github.com/stackabletech/stackable-cockpit/releases/download/stackablectl-24.7.0/stackablectl-x86_64-unknown-linux-gnu
           echo "$STACKABLECTL" >> $GITHUB_PATH
+          echo "STACKABLECTL=$STACKABLECTL" >> $GITHUB_ENV
 
+      - run: |
+          echo STACKABLECTL $STACKABLECTL
+          echo GITHUB_PATH $GITHUB_PATH
       # Run the test/test-suite below. Currently this assumes a fixed list, but would need improvements if we want to make it more dynamic
       # Perhaps a preparation step can be run to determine if it is a suite or test (via ./tests/test-definition.yaml)
 
       # TODO (@NickLarsenNZ): We could make beku tell us which suites and tests are available.
       # So we can see if the input.test is a --test or a --test-suite. And if the label has openshift we need to spin up one.
 
-      - if: inputs.test == 'smoke'
-        name: Smoke test 
-        # run: echo "not openshift and is smoke test with PARALLEL=${PARALLEL}"
-        run: nix-shell --run "./scripts/run-tests --test '$TEST' --parallel '${PARALLEL}'"
+      # - if: inputs.test == 'smoke'
+      #   name: Smoke test 
+      #   # run: echo "not openshift and is smoke test with PARALLEL=${PARALLEL}"
+      #   run: nix-shell --run "./scripts/run-tests --test '$TEST' --parallel '${PARALLEL}'"
 
-      - if: inputs.test != 'openshift' && inputs.test != 'smoke'
-        name: Other test suite
-        run: echo "not openshift and is the ${TEST} suite with PARALLEL=${PARALLEL}"
-        # run: nix-shell --run "./scripts/run-tests --test-suite '$TEST' --parallel '${PARALLEL}'"
+      # - if: inputs.test != 'openshift' && inputs.test != 'smoke'
+      #   name: Other test suite
+      #   run: echo "not openshift and is the ${TEST} suite with PARALLEL=${PARALLEL}"
+      #   # run: nix-shell --run "./scripts/run-tests --test-suite '$TEST' --parallel '${PARALLEL}'"
 
-      - if: inputs.test == 'openshift'
-        name: OpenShift test suite
-        run: echo "is openshift with PARALLEL=${PARALLEL}"
+      # - if: inputs.test == 'openshift'
+      #   name: OpenShift test suite
+      #   run: echo "is openshift with PARALLEL=${PARALLEL}"
