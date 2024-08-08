@@ -21,7 +21,7 @@ on:
 
 jobs:
   test:
-    name: Test Suite
+    name: Test Suite ${{ inputs.test }}
     runs-on: ubuntu-latest
     env:
       TEST: ${{inputs.test}}
