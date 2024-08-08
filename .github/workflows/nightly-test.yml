@@ -26,7 +26,6 @@ jobs:
     env:
       TEST: ${{inputs.test}}
       PARALLEL: ${{inputs.parallel}}
-      IS_OPENSHIFT: ${{ inputs.test == 'openshift' }}
     steps:
       # TODO (@NickLarsenNZ): Replace KinD with Replicated
       - uses: helm/kind-action@0025e74a8c7512023d06dc019c617aa3cf561fde # v1.10.0
@@ -36,13 +35,13 @@ jobs:
       # Run the test/test-suite below. Currently this assumes a fixed list, but would need improvements if we want to make it more dynamic
       # Perhaps a preparation step can be run to determine if it is a suite or test (via ./tests/test-definition.yaml)
 
-      - if: env.IS_OPENSHIFT
+      - if: inputs.test == 'openshift'
         run: echo "is openshift with PARALLEL=${PARALLEL}"
 
-      - if: !env.IS_OPENSHIFT && inputs.test == 'smoke'
+      - if: inputs.test != 'openshift' && inputs.test == 'smoke'
         run: echo "not openshift and is smoke test with PARALLEL=${PARALLEL}"
         # run: nix-shell --run "./scripts/run-tests --test '$TEST' --parallel '${PARALLEL}'"
 
-      - if: !env.IS_OPENSHIFT && inputs.test != 'smoke'
+      - if: inputs.test != 'openshift' && inputs.test != 'smoke'
         run: echo "not openshift and is the ${TEST} suite with PARALLEL=${PARALLEL}"
         # run: nix-shell --run "./scripts/run-tests --test-suite '$TEST' --parallel '${PARALLEL}'"
