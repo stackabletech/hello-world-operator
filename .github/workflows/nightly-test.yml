@@ -1,13 +1,48 @@
 ---
 # This is an example workflow that will then be moved to operator-templating
-name: Nightly test
+name: Nightly Test Suite
 
 on:
   workflow_dispatch:
+    inputs:
+      test:
+        description: Which test or suite to run
+        required: true
+        type: choice
+        default: smoke
+        options: 
+        - smoke
+        - nightly
+        - openshift
+      parallel:
+        description: Parallelism
+        required: false
+        default: '1'
 
 jobs:
-  placeholder:
-    name: placeholder
+  test:
+    name: Test Suite
     runs-on: ubuntu-latest
+    env:
+      TEST: ${{inputs.test}}
+      PARALLEL: ${{inputs.parallel}}
+      IS_OPENSHIFT: ${{ inputs.test == 'openshift' }}
     steps:
-    - run: echo hello world
+      # TODO (@NickLarsenNZ): Replace KinD with Replicated
+      - uses: helm/kind-action@0025e74a8c7512023d06dc019c617aa3cf561fde # v1.10.0
+      - uses: cachix/install-nix-action@ba0dd844c9180cbf77aa72a116d6fbc515d0e87b # tag=v27
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+
+      # Run the test/test-suite below. Currently this assumes a fixed list, but would need improvements if we want to make it more dynamic
+      # Perhaps a preparation step can be run to determine if it is a suite or test (via ./tests/test-definition.yaml)
+
+      - if: env.IS_OPENSHIFT
+        run: echo "is openshift with PARALLEL=${PARALLEL}"
+
+      - if: !env.IS_OPENSHIFT && inputs.test == 'smoke'
+        run: echo "not openshift and is smoke test with PARALLEL=${PARALLEL}"
+        # run: nix-shell --run "./scripts/run-tests --test '$TEST' --parallel '${PARALLEL}'"
+
+      - if: !env.IS_OPENSHIFT && inputs.test != 'smoke'
+        run: echo "not openshift and is the ${TEST} suite with PARALLEL=${PARALLEL}"
+        # run: nix-shell --run "./scripts/run-tests --test-suite '$TEST' --parallel '${PARALLEL}'"
