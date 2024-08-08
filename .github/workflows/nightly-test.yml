@@ -40,8 +40,8 @@ jobs:
 
       - if: inputs.test == 'smoke'
         name: Smoke test 
-        run: echo "not openshift and is smoke test with PARALLEL=${PARALLEL}"
-        # run: nix-shell --run "./scripts/run-tests --test '$TEST' --parallel '${PARALLEL}'"
+        # run: echo "not openshift and is smoke test with PARALLEL=${PARALLEL}"
+        run: nix-shell --run "./scripts/run-tests --test '$TEST' --parallel '${PARALLEL}'"
 
       - if: inputs.test != 'openshift' && inputs.test != 'smoke'
         name: Other test suite
