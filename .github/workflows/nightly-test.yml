@@ -38,7 +38,7 @@ jobs:
           STACKABLECTL="$(mktemp -d)/stackablectl"
           curl -L -o "$STACKABLECTL" https://github.com/stackabletech/stackable-cockpit/releases/download/stackablectl-24.7.0/stackablectl-x86_64-unknown-linux-gnu
           chmod +x "$STACKABLECTL"
-          echo "$STACKABLECTL" >> $GITHUB_PATH
+          echo "PATH=${PATH}:$STACKABLECTL" >> $GITHUB_PATH
           echo "STACKABLECTL=$STACKABLECTL" >> $GITHUB_ENV
 
       - run: |
