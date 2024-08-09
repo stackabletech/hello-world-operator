@@ -35,13 +35,15 @@ jobs:
         run: |
           # TODO (@NickLarsenNZ): Interpolate stackablectl version
           set -x
-          STACKABLECTL="$(mktemp -d)/stackablectl"
+          TEMP="$(mktemp -d)"
+          STACKABLECTL="$TEMP/stackablectl"
           curl -L -o "$STACKABLECTL" https://github.com/stackabletech/stackable-cockpit/releases/download/stackablectl-24.7.0/stackablectl-x86_64-unknown-linux-gnu
           chmod +x "$STACKABLECTL"
-          echo "PATH=${PATH}:$STACKABLECTL" >> $GITHUB_PATH
+          echo "PATH=${PATH}:$TEMP" >> $GITHUB_PATH
           echo "STACKABLECTL=$STACKABLECTL" >> $GITHUB_ENV
 
       - run: |
+          set -x
           echo STACKABLECTL $STACKABLECTL
           echo GITHUB_PATH $GITHUB_PATH
           echo PATH $PATH
