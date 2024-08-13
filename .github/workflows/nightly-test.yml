@@ -40,7 +40,7 @@ jobs:
           set -euo pipefail
           TEMP="$(mktemp -d)"
           STACKABLECTL="$TEMP/stackablectl"
-          curl -L -o "$STACKABLECTL" "https://github.com/stackabletech/stackable-cockpit/releases/download/stackablectl-${STACKABLECTL_VERSION}/stackablectl-$(uname -m)-unknown-linux-gnu"
+          curl --fail -sSL -o "$STACKABLECTL" "https://github.com/stackabletech/stackable-cockpit/releases/download/stackablectl-${STACKABLECTL_VERSION}/stackablectl-$(uname -m)-unknown-linux-gnu"
           chmod +x "$STACKABLECTL"
           echo "PATH=${PATH}:$TEMP" >> $GITHUB_PATH
 
@@ -57,10 +57,10 @@ jobs:
       # TODO (@NickLarsenNZ): We could make beku tell us which suites and tests are available.
       # So we can see if the input.test is a --test or a --test-suite. And if the label has openshift we need to spin up one.
 
-      # - if: inputs.test == 'smoke'
-      #   name: Smoke test 
-      #   # run: echo "not openshift and is smoke test with PARALLEL=${PARALLEL}"
-      #   run: nix-shell --run "./scripts/run-tests --test '$TEST' --parallel '${PARALLEL}'"
+      - if: inputs.test == 'smoke'
+        name: Smoke test 
+        # run: echo "not openshift and is smoke test with PARALLEL=${PARALLEL}"
+        run: nix-shell --run "./scripts/run-tests --test '$TEST' --parallel '${PARALLEL}'"
 
       # - if: inputs.test != 'openshift' && inputs.test != 'smoke'
       #   name: Other test suite
