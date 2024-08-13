@@ -39,8 +39,9 @@ jobs:
           # TODO (@NickLarsenNZ): Interpolate stackablectl version
           TEMP="$(mktemp -d)"
           STACKABLECTL="$TEMP/stackablectl"
-          curl -L -o "$STACKABLECTL" https://github.com/stackabletech/stackable-cockpit/releases/download/stackablectl-${STACKABLE_VERSION}/stackablectl-$(uname -m)-unknown-linux-gnu
+          curl -L -o "$STACKABLECTL" "https://github.com/stackabletech/stackable-cockpit/releases/download/stackablectl-${STACKABLE_VERSION}/stackablectl-$(uname -m)-unknown-linux-gnu"
           chmod +x "$STACKABLECTL"
+          file "$STACKABLECTL"
           echo "PATH=${PATH}:$TEMP" >> $GITHUB_PATH
 
       - run: |
