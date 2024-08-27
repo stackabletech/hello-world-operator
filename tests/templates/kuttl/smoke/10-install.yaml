@@ -13,6 +13,9 @@ spec:
   clusterConfig:
     listenerClass: external-unstable
   servers:
+    envOverrides:
+      ROLE_VAR: role-value
+      COMMON_VAR: role-value
     config:
       resources:
         storage:
@@ -30,3 +33,6 @@ spec:
                     cpu: 110m
                   limits:
                     cpu: 410m
+        envOverrides:
+          GROUP_VAR: group-value
+          COMMON_VAR: group-value
