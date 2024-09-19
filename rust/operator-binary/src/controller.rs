@@ -499,7 +499,7 @@ fn build_rolegroup_service(
     Ok(Service {
         metadata: ObjectMetaBuilder::new()
             .name_and_namespace(hello)
-            .name(&rolegroup.object_name())
+            .name(rolegroup.object_name())
             .ownerreference_from_resource(hello, None, Some(true))
             .context(ObjectMissingMetadataForOwnerRefSnafu)?
             .with_recommended_labels(build_recommended_labels(
@@ -642,7 +642,7 @@ fn build_server_rolegroup_statefulset(
         .add_volume(stackable_operator::k8s_openapi::api::core::v1::Volume {
             name: STACKABLE_CONFIG_DIR_NAME.to_string(),
             config_map: Some(ConfigMapVolumeSource {
-                name: Some(role_group_ref.object_name()),
+                name: role_group_ref.object_name(),
                 ..Default::default()
             }),
             ..Default::default()
@@ -678,7 +678,7 @@ fn build_server_rolegroup_statefulset(
         pod_builder.add_volume(Volume {
             name: STACKABLE_LOG_CONFIG_MOUNT_DIR_NAME.to_string(),
             config_map: Some(ConfigMapVolumeSource {
-                name: Some(config_map.into()),
+                name: config_map.into(),
                 ..ConfigMapVolumeSource::default()
             }),
             ..Volume::default()
@@ -687,7 +687,7 @@ fn build_server_rolegroup_statefulset(
         pod_builder.add_volume(Volume {
             name: STACKABLE_LOG_CONFIG_MOUNT_DIR_NAME.to_string(),
             config_map: Some(ConfigMapVolumeSource {
-                name: Some(role_group_ref.object_name()),
+                name: role_group_ref.object_name(),
                 ..ConfigMapVolumeSource::default()
             }),
             ..Volume::default()
@@ -716,7 +716,7 @@ fn build_server_rolegroup_statefulset(
     Ok(StatefulSet {
         metadata: ObjectMetaBuilder::new()
             .name_and_namespace(hello)
-            .name(&role_group_ref.object_name())
+            .name(role_group_ref.object_name())
             .ownerreference_from_resource(hello, None, Some(true))
             .context(ObjectMissingMetadataForOwnerRefSnafu)?
             .with_recommended_labels(build_recommended_labels(
