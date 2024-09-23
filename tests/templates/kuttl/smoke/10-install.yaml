@@ -13,6 +13,13 @@ spec:
   clusterConfig:
     listenerClass: external-unstable
   servers:
+    envOverrides:
+      ROLE_VAR: role-value
+      COMMON_VAR: role-value
+    configOverrides:
+      application.properties:
+        prop.common: role-value
+        prop.role: role-value
     config:
       resources:
         storage:
@@ -30,3 +37,10 @@ spec:
                     cpu: 110m
                   limits:
                     cpu: 410m
+        envOverrides:
+          GROUP_VAR: group-value
+          COMMON_VAR: group-value
+        configOverrides:
+          application.properties:
+            prop.common: group-value
+            prop.group: group-value

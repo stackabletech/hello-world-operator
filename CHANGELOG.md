@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed
+
+- Reduce CRD size from `475KB` to `49KB` by accepting arbitrary YAML input instead of the underlying schema for the following fields ([#112]):
+  - `podOverrides`
+  - `affinity`
+
+[#112]: https://github.com/stackabletech/hello-world-operator/pull/112
+
 ## [24.7.0] - 2024-07-24
 
 ### Changed
