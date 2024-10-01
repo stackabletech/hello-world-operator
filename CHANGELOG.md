@@ -10,7 +10,13 @@ All notable changes to this project will be documented in this file.
   - `podOverrides`
   - `affinity`
 
+### Fixed
+
+- BREAKING: The fields `connection` and `host` on `S3Connection` as well as `bucketName` on `S3Bucket`are now mandatory ([#121]).
+  - Also fixes the log config error handling.
+
 [#112]: https://github.com/stackabletech/hello-world-operator/pull/112
+[#121]: https://github.com/stackabletech/hello-world-operator/pull/121
 
 ## [24.7.0] - 2024-07-24
 
