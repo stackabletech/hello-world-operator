@@ -12,6 +12,7 @@ use product_config::{
 use snafu::{OptionExt, ResultExt, Snafu};
 use stackable_operator::{
     builder::{
+        self,
         configmap::ConfigMapBuilder,
         meta::ObjectMetaBuilder,
         pod::{container::ContainerBuilder, resources::ResourceRequirementsBuilder, PodBuilder},
@@ -36,7 +37,9 @@ use stackable_operator::{
     product_config_utils::{transform_all_roles_to_config, validate_all_roles_and_groups_config},
     product_logging::{
         self,
-        framework::{create_vector_shutdown_file_command, remove_vector_shutdown_file_command},
+        framework::{
+            create_vector_shutdown_file_command, remove_vector_shutdown_file_command, LoggingError,
+        },
         spec::{
             ConfigMapLogConfig, ContainerLogConfig, ContainerLogConfigChoice,
             CustomContainerLogConfig,
@@ -223,6 +226,17 @@ pub enum Error {
     GetRequiredLabels {
         source:
             stackable_operator::kvp::KeyValuePairError<stackable_operator::kvp::LabelValueError>,
+    },
+
+    #[snafu(display("failed to configure logging"))]
+    ConfigureLogging { source: LoggingError },
+
+    #[snafu(display("failed to add needed volume"))]
+    AddVolume { source: builder::pod::Error },
+
+    #[snafu(display("failed to add needed volumeMount"))]
+    AddVolumeMount {
+        source: builder::pod::container::Error,
     },
 }
 type Result<T, E = Error> = std::result::Result<T, E>;
@@ -619,11 +633,14 @@ fn build_server_rolegroup_statefulset(
         .args(vec![command.join("\n")])
         .image_from_product_image(resolved_product_image)
         .add_volume_mount(STACKABLE_CONFIG_DIR_NAME, STACKABLE_CONFIG_DIR)
+        .context(AddVolumeMountSnafu)?
         .add_volume_mount(STACKABLE_LOG_DIR_NAME, STACKABLE_LOG_DIR)
+        .context(AddVolumeMountSnafu)?
         .add_volume_mount(
             STACKABLE_LOG_CONFIG_MOUNT_DIR_NAME,
             STACKABLE_LOG_CONFIG_MOUNT_DIR,
         )
+        .context(AddVolumeMountSnafu)?
         .add_container_port(HTTP_PORT_NAME, HTTP_PORT.into())
         .resources(merged_config.resources.clone().into())
         .readiness_probe(Probe {
@@ -672,6 +689,7 @@ fn build_server_rolegroup_statefulset(
             }),
             ..Default::default()
         })
+        .context(AddVolumeSnafu)?
         .add_volume(Volume {
             name: STACKABLE_LOG_DIR_NAME.to_string(),
             empty_dir: Some(EmptyDirVolumeSource {
@@ -682,6 +700,7 @@ fn build_server_rolegroup_statefulset(
             }),
             ..Volume::default()
         })
+        .context(AddVolumeSnafu)?
         .affinity(&merged_config.affinity)
         .service_account_name(sa_name);
 
@@ -700,38 +719,45 @@ fn build_server_rolegroup_statefulset(
             })),
     }) = merged_config.logging.containers.get(&Container::Hello)
     {
-        pod_builder.add_volume(Volume {
-            name: STACKABLE_LOG_CONFIG_MOUNT_DIR_NAME.to_string(),
-            config_map: Some(ConfigMapVolumeSource {
-                name: config_map.into(),
-                ..ConfigMapVolumeSource::default()
-            }),
-            ..Volume::default()
-        });
+        pod_builder
+            .add_volume(Volume {
+                name: STACKABLE_LOG_CONFIG_MOUNT_DIR_NAME.to_string(),
+                config_map: Some(ConfigMapVolumeSource {
+                    name: config_map.into(),
+                    ..ConfigMapVolumeSource::default()
+                }),
+                ..Volume::default()
+            })
+            .context(AddVolumeSnafu)?;
     } else {
-        pod_builder.add_volume(Volume {
-            name: STACKABLE_LOG_CONFIG_MOUNT_DIR_NAME.to_string(),
-            config_map: Some(ConfigMapVolumeSource {
-                name: role_group_ref.object_name(),
-                ..ConfigMapVolumeSource::default()
-            }),
-            ..Volume::default()
-        });
+        pod_builder
+            .add_volume(Volume {
+                name: STACKABLE_LOG_CONFIG_MOUNT_DIR_NAME.to_string(),
+                config_map: Some(ConfigMapVolumeSource {
+                    name: role_group_ref.object_name(),
+                    ..ConfigMapVolumeSource::default()
+                }),
+                ..Volume::default()
+            })
+            .context(AddVolumeSnafu)?;
     }
 
     if merged_config.logging.enable_vector_agent {
-        pod_builder.add_container(product_logging::framework::vector_container(
-            resolved_product_image,
-            STACKABLE_CONFIG_DIR_NAME,
-            STACKABLE_LOG_DIR_NAME,
-            merged_config.logging.containers.get(&Container::Vector),
-            ResourceRequirementsBuilder::new()
-                .with_cpu_request("250m")
-                .with_cpu_limit("500m")
-                .with_memory_request("128Mi")
-                .with_memory_limit("128Mi")
-                .build(),
-        ));
+        pod_builder.add_container(
+            product_logging::framework::vector_container(
+                resolved_product_image,
+                STACKABLE_CONFIG_DIR_NAME,
+                STACKABLE_LOG_DIR_NAME,
+                merged_config.logging.containers.get(&Container::Vector),
+                ResourceRequirementsBuilder::new()
+                    .with_cpu_request("250m")
+                    .with_cpu_limit("500m")
+                    .with_memory_request("128Mi")
+                    .with_memory_limit("128Mi")
+                    .build(),
+            )
+            .context(ConfigureLoggingSnafu)?,
+        );
     }
 
     let mut pod_template = pod_builder.build_template();
