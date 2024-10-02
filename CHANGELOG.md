@@ -10,7 +10,12 @@ All notable changes to this project will be documented in this file.
   - `podOverrides`
   - `affinity`
 
+### Fixed
+
+- Add log config error handling ([#121]).
+
 [#112]: https://github.com/stackabletech/hello-world-operator/pull/112
+[#121]: https://github.com/stackabletech/hello-world-operator/pull/121
 
 ## [24.7.0] - 2024-07-24
 

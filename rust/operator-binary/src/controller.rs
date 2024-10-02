@@ -12,6 +12,7 @@ use product_config::{
 use snafu::{OptionExt, ResultExt, Snafu};
 use stackable_operator::{
     builder::{
+        self,
         configmap::ConfigMapBuilder,
         meta::ObjectMetaBuilder,
         pod::{container::ContainerBuilder, resources::ResourceRequirementsBuilder, PodBuilder},
@@ -36,7 +37,9 @@ use stackable_operator::{
     product_config_utils::{transform_all_roles_to_config, validate_all_roles_and_groups_config},
     product_logging::{
         self,
-        framework::{create_vector_shutdown_file_command, remove_vector_shutdown_file_command},
+        framework::{
+            create_vector_shutdown_file_command, remove_vector_shutdown_file_command, LoggingError,
+        },
         spec::{
             ConfigMapLogConfig, ContainerLogConfig, ContainerLogConfigChoice,
             CustomContainerLogConfig,
@@ -81,92 +84,115 @@ pub struct Ctx {
 pub enum Error {
     #[snafu(display("internal operator failure"))]
     InternalOperatorFailure { source: crate::crd::Error },
+
     #[snafu(display("object defines no namespace"))]
     ObjectHasNoNamespace,
+
     #[snafu(display("object defines no hello role"))]
     NoServerRole,
+
     #[snafu(display("failed to calculate global service name"))]
     GlobalServiceNameNotFound,
+
     #[snafu(display("failed to apply global Service"))]
     ApplyRoleService {
         source: stackable_operator::cluster_resources::Error,
     },
+
     #[snafu(display("failed to apply Service for {rolegroup}"))]
     ApplyRoleGroupService {
         source: stackable_operator::cluster_resources::Error,
         rolegroup: RoleGroupRef<HelloCluster>,
     },
+
     #[snafu(display("failed to format runtime properties"))]
     PropertiesWriteError {
         source: product_config::writer::PropertiesWriterError,
     },
+
     #[snafu(display("failed to build ConfigMap for {rolegroup}"))]
     BuildRoleGroupConfig {
         source: stackable_operator::builder::configmap::Error,
         rolegroup: RoleGroupRef<HelloCluster>,
     },
+
     #[snafu(display("failed to apply ConfigMap for {rolegroup}"))]
     ApplyRoleGroupConfig {
         source: stackable_operator::cluster_resources::Error,
         rolegroup: RoleGroupRef<HelloCluster>,
     },
+
     #[snafu(display("failed to apply StatefulSet for {rolegroup}"))]
     ApplyRoleGroupStatefulSet {
         source: stackable_operator::cluster_resources::Error,
         rolegroup: RoleGroupRef<HelloCluster>,
     },
+
     #[snafu(display("failed to generate product config"))]
     GenerateProductConfig {
         source: stackable_operator::product_config_utils::Error,
     },
+
     #[snafu(display("invalid product config"))]
     InvalidProductConfig {
         source: stackable_operator::product_config_utils::Error,
     },
+
     #[snafu(display("object is missing metadata to build owner reference"))]
     ObjectMissingMetadataForOwnerRef {
         source: stackable_operator::builder::meta::Error,
     },
+
     #[snafu(display("failed to update status"))]
     ApplyStatus {
         source: stackable_operator::client::Error,
     },
+
     #[snafu(display("failed to resolve and merge resource config for role and role group"))]
     FailedToResolveResourceConfig { source: crate::crd::Error },
+
     #[snafu(display("failed to create hello container [{name}]"))]
     FailedToCreateHelloContainer {
         source: stackable_operator::builder::pod::container::Error,
         name: String,
     },
+
     #[snafu(display("failed to create cluster resources"))]
     CreateClusterResources {
         source: stackable_operator::cluster_resources::Error,
     },
+
     #[snafu(display("failed to delete orphaned resources"))]
     DeleteOrphanedResources {
         source: stackable_operator::cluster_resources::Error,
     },
+
     #[snafu(display("failed to resolve the Vector aggregator address"))]
     ResolveVectorAggregatorAddress {
         source: crate::product_logging::Error,
     },
+
     #[snafu(display("failed to add the logging configuration to the ConfigMap [{cm_name}]"))]
     InvalidLoggingConfig {
         source: crate::product_logging::Error,
         cm_name: String,
     },
+
     #[snafu(display("failed to patch service account"))]
     ApplyServiceAccount {
         source: stackable_operator::cluster_resources::Error,
     },
+
     #[snafu(display("failed to patch role binding"))]
     ApplyRoleBinding {
         source: stackable_operator::cluster_resources::Error,
     },
+
     #[snafu(display("failed to build RBAC resources"))]
     BuildRbacResources {
         source: stackable_operator::commons::rbac::Error,
     },
+
     #[snafu(display(
         "failed to serialize [{JVM_SECURITY_PROPERTIES}] for group {}",
         rolegroup
@@ -175,10 +201,12 @@ pub enum Error {
         source: product_config::writer::PropertiesWriterError,
         rolegroup: String,
     },
+
     #[snafu(display("failed to create PodDisruptionBudget"))]
     FailedToCreatePdb {
         source: crate::operations::pdb::Error,
     },
+
     #[snafu(display("failed to configure graceful shutdown"))]
     GracefulShutdown {
         source: crate::operations::graceful_shutdown::Error,
@@ -198,6 +226,17 @@ pub enum Error {
     GetRequiredLabels {
         source:
             stackable_operator::kvp::KeyValuePairError<stackable_operator::kvp::LabelValueError>,
+    },
+
+    #[snafu(display("failed to configure logging"))]
+    ConfigureLogging { source: LoggingError },
+
+    #[snafu(display("failed to add needed volume"))]
+    AddVolume { source: builder::pod::Error },
+
+    #[snafu(display("failed to add needed volumeMount"))]
+    AddVolumeMount {
+        source: builder::pod::container::Error,
     },
 }
 type Result<T, E = Error> = std::result::Result<T, E>;
@@ -594,11 +633,14 @@ fn build_server_rolegroup_statefulset(
         .args(vec![command.join("\n")])
         .image_from_product_image(resolved_product_image)
         .add_volume_mount(STACKABLE_CONFIG_DIR_NAME, STACKABLE_CONFIG_DIR)
+        .context(AddVolumeMountSnafu)?
         .add_volume_mount(STACKABLE_LOG_DIR_NAME, STACKABLE_LOG_DIR)
+        .context(AddVolumeMountSnafu)?
         .add_volume_mount(
             STACKABLE_LOG_CONFIG_MOUNT_DIR_NAME,
             STACKABLE_LOG_CONFIG_MOUNT_DIR,
         )
+        .context(AddVolumeMountSnafu)?
         .add_container_port(HTTP_PORT_NAME, HTTP_PORT.into())
         .resources(merged_config.resources.clone().into())
         .readiness_probe(Probe {
@@ -647,6 +689,7 @@ fn build_server_rolegroup_statefulset(
             }),
             ..Default::default()
         })
+        .context(AddVolumeSnafu)?
         .add_volume(Volume {
             name: STACKABLE_LOG_DIR_NAME.to_string(),
             empty_dir: Some(EmptyDirVolumeSource {
@@ -657,6 +700,7 @@ fn build_server_rolegroup_statefulset(
             }),
             ..Volume::default()
         })
+        .context(AddVolumeSnafu)?
         .affinity(&merged_config.affinity)
         .service_account_name(sa_name);
 
@@ -675,38 +719,45 @@ fn build_server_rolegroup_statefulset(
             })),
     }) = merged_config.logging.containers.get(&Container::Hello)
     {
-        pod_builder.add_volume(Volume {
-            name: STACKABLE_LOG_CONFIG_MOUNT_DIR_NAME.to_string(),
-            config_map: Some(ConfigMapVolumeSource {
-                name: config_map.into(),
-                ..ConfigMapVolumeSource::default()
-            }),
-            ..Volume::default()
-        });
+        pod_builder
+            .add_volume(Volume {
+                name: STACKABLE_LOG_CONFIG_MOUNT_DIR_NAME.to_string(),
+                config_map: Some(ConfigMapVolumeSource {
+                    name: config_map.into(),
+                    ..ConfigMapVolumeSource::default()
+                }),
+                ..Volume::default()
+            })
+            .context(AddVolumeSnafu)?;
     } else {
-        pod_builder.add_volume(Volume {
-            name: STACKABLE_LOG_CONFIG_MOUNT_DIR_NAME.to_string(),
-            config_map: Some(ConfigMapVolumeSource {
-                name: role_group_ref.object_name(),
-                ..ConfigMapVolumeSource::default()
-            }),
-            ..Volume::default()
-        });
+        pod_builder
+            .add_volume(Volume {
+                name: STACKABLE_LOG_CONFIG_MOUNT_DIR_NAME.to_string(),
+                config_map: Some(ConfigMapVolumeSource {
+                    name: role_group_ref.object_name(),
+                    ..ConfigMapVolumeSource::default()
+                }),
+                ..Volume::default()
+            })
+            .context(AddVolumeSnafu)?;
     }
 
     if merged_config.logging.enable_vector_agent {
-        pod_builder.add_container(product_logging::framework::vector_container(
-            resolved_product_image,
-            STACKABLE_CONFIG_DIR_NAME,
-            STACKABLE_LOG_DIR_NAME,
-            merged_config.logging.containers.get(&Container::Vector),
-            ResourceRequirementsBuilder::new()
-                .with_cpu_request("250m")
-                .with_cpu_limit("500m")
-                .with_memory_request("128Mi")
-                .with_memory_limit("128Mi")
-                .build(),
-        ));
+        pod_builder.add_container(
+            product_logging::framework::vector_container(
+                resolved_product_image,
+                STACKABLE_CONFIG_DIR_NAME,
+                STACKABLE_LOG_DIR_NAME,
+                merged_config.logging.containers.get(&Container::Vector),
+                ResourceRequirementsBuilder::new()
+                    .with_cpu_request("250m")
+                    .with_cpu_limit("500m")
+                    .with_memory_request("128Mi")
+                    .with_memory_limit("128Mi")
+                    .build(),
+            )
+            .context(ConfigureLoggingSnafu)?,
+        );
     }
 
     let mut pod_template = pod_builder.build_template();
