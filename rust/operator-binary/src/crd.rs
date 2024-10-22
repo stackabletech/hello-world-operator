@@ -15,7 +15,10 @@ use stackable_operator::{
             PvcConfig, PvcConfigFragment, Resources, ResourcesFragment,
         },
     },
-    config::{fragment, fragment::Fragment, fragment::ValidationError, merge::Merge},
+    config::{
+        fragment::{self, Fragment, ValidationError},
+        merge::Merge,
+    },
     k8s_openapi::apimachinery::pkg::api::resource::Quantity,
     kube::{runtime::reflector::ObjectRef, CustomResource, ResourceExt},
     product_config_utils::{self, Configuration},
@@ -24,6 +27,7 @@ use stackable_operator::{
     schemars::{self, JsonSchema},
     status::condition::{ClusterCondition, HasStatusCondition},
     time::Duration,
+    utils::cluster_domain::KUBERNETES_CLUSTER_DOMAIN,
 };
 use std::{collections::BTreeMap, str::FromStr};
 use strum::{Display, EnumIter, EnumString, IntoEnumIterator};
@@ -476,9 +480,12 @@ pub struct PodRef {
 
 impl PodRef {
     pub fn fqdn(&self) -> String {
+        let cluster_domain = KUBERNETES_CLUSTER_DOMAIN
+            .get()
+            .expect("KUBERNETES_CLUSTER_DOMAIN must first be set by calling initialize_operator");
         format!(
-            "{}.{}.{}.svc.cluster.local",
-            self.pod_name, self.role_group_service_name, self.namespace
+            "{}.{}.{}.svc.{}",
+            self.pod_name, self.role_group_service_name, self.namespace, cluster_domain
         )
     }
 }

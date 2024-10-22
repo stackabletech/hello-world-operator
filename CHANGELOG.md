@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- The operator can now run on Kubernetes clusters using a non-default cluster domain. It should automatically detect the
+  correct domain to use, but you can also use the env var `KUBERNETES_CLUSTER_DOMAIN` to set the domain explicitly
+  or use the helm-chart property `kubernetesClusterDomain` ([#xxx]).
+
 ### Changed
 
 - Reduce CRD size from `475KB` to `49KB` by accepting arbitrary YAML input instead of the underlying schema for the following fields ([#112]):
@@ -16,6 +22,7 @@ All notable changes to this project will be documented in this file.
 
 [#112]: https://github.com/stackabletech/hello-world-operator/pull/112
 [#121]: https://github.com/stackabletech/hello-world-operator/pull/121
+[#xxx]: https://github.com/stackabletech/hello-world-operator/pull/xxx
 
 ## [24.7.0] - 2024-07-24
 
