@@ -3,6 +3,8 @@
 //!
 //! When writing a new Operator, this is often a good starting point. Edits made here will ripple
 //! through the codebase, so it's easy to follow up from here.
+use std::{collections::BTreeMap, str::FromStr};
+
 use serde::{Deserialize, Serialize};
 use snafu::{OptionExt, ResultExt, Snafu};
 use stackable_operator::{
@@ -15,7 +17,10 @@ use stackable_operator::{
             PvcConfig, PvcConfigFragment, Resources, ResourcesFragment,
         },
     },
-    config::{fragment, fragment::Fragment, fragment::ValidationError, merge::Merge},
+    config::{
+        fragment::{self, Fragment, ValidationError},
+        merge::Merge,
+    },
     k8s_openapi::apimachinery::pkg::api::resource::Quantity,
     kube::{runtime::reflector::ObjectRef, CustomResource, ResourceExt},
     product_config_utils::{self, Configuration},
@@ -24,8 +29,8 @@ use stackable_operator::{
     schemars::{self, JsonSchema},
     status::condition::{ClusterCondition, HasStatusCondition},
     time::Duration,
+    utils::cluster_info::KubernetesClusterInfo,
 };
-use std::{collections::BTreeMap, str::FromStr};
 use strum::{Display, EnumIter, EnumString, IntoEnumIterator};
 
 use crate::affinity::get_affinity;
@@ -475,10 +480,13 @@ pub struct PodRef {
 }
 
 impl PodRef {
-    pub fn fqdn(&self) -> String {
+    pub fn fqdn(&self, cluster_info: &KubernetesClusterInfo) -> String {
         format!(
-            "{}.{}.{}.svc.cluster.local",
-            self.pod_name, self.role_group_service_name, self.namespace
+            "{pod_name}.{service_name}.{namespace}.svc.{cluster_domain}",
+            pod_name = self.pod_name,
+            service_name = self.role_group_service_name,
+            namespace = self.namespace,
+            cluster_domain = cluster_info.cluster_domain,
         )
     }
 }
