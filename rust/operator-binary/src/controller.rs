@@ -30,7 +30,11 @@ use stackable_operator::{
         apimachinery::pkg::{apis::meta::v1::LabelSelector, util::intstr::IntOrString},
         DeepMerge,
     },
-    kube::{runtime::controller::Action, Resource, ResourceExt},
+    kube::{
+        core::{error_boundary, DeserializeGuard},
+        runtime::controller::Action,
+        Resource, ResourceExt,
+    },
     kvp::{Labels, ObjectLabels},
     logging::controller::ReconcilerError,
     memory::{BinaryMultiple, MemoryQuantity},
@@ -238,6 +242,11 @@ pub enum Error {
     AddVolumeMount {
         source: builder::pod::container::Error,
     },
+
+    #[snafu(display("HelloCluster object is invalid"))]
+    InvalidHelloCluster {
+        source: error_boundary::InvalidObject,
+    },
 }
 type Result<T, E = Error> = std::result::Result<T, E>;
 
@@ -247,8 +256,18 @@ impl ReconcilerError for Error {
     }
 }
 
-pub async fn reconcile_hello(hello: Arc<HelloCluster>, ctx: Arc<Ctx>) -> Result<Action> {
+pub async fn reconcile_hello(
+    hello: Arc<DeserializeGuard<HelloCluster>>,
+    ctx: Arc<Ctx>,
+) -> Result<Action> {
     tracing::info!("Starting reconcile");
+
+    let hello = hello
+        .0
+        .as_ref()
+        .map_err(error_boundary::InvalidObject::clone)
+        .context(InvalidHelloClusterSnafu)?;
+
     let client = &ctx.client;
     let resolved_product_image: ResolvedProductImage = hello
         .spec
@@ -259,7 +278,7 @@ pub async fn reconcile_hello(hello: Arc<HelloCluster>, ctx: Arc<Ctx>) -> Result<
     let validated_config = validate_all_roles_and_groups_config(
         &resolved_product_image.product_version,
         &transform_all_roles_to_config(
-            hello.as_ref(),
+            hello,
             [(
                 HelloRole::Server.to_string(),
                 (
@@ -296,7 +315,7 @@ pub async fn reconcile_hello(hello: Arc<HelloCluster>, ctx: Arc<Ctx>) -> Result<
     .context(CreateClusterResourcesSnafu)?;
 
     let (rbac_sa, rbac_rolebinding) = build_rbac_resources(
-        hello.as_ref(),
+        hello,
         APP_NAME,
         cluster_resources
             .get_required_labels()
@@ -313,7 +332,7 @@ pub async fn reconcile_hello(hello: Arc<HelloCluster>, ctx: Arc<Ctx>) -> Result<
         .await
         .context(ApplyRoleBindingSnafu)?;
 
-    let server_role_service = build_server_role_service(&hello, &resolved_product_image)?;
+    let server_role_service = build_server_role_service(hello, &resolved_product_image)?;
 
     // we have to get the assigned ports
     cluster_resources
@@ -321,7 +340,7 @@ pub async fn reconcile_hello(hello: Arc<HelloCluster>, ctx: Arc<Ctx>) -> Result<
         .await
         .context(ApplyRoleServiceSnafu)?;
 
-    let vector_aggregator_address = resolve_vector_aggregator_address(&hello, client)
+    let vector_aggregator_address = resolve_vector_aggregator_address(hello, client)
         .await
         .context(ResolveVectorAggregatorAddressSnafu)?;
 
@@ -334,9 +353,9 @@ pub async fn reconcile_hello(hello: Arc<HelloCluster>, ctx: Arc<Ctx>) -> Result<
             .merged_config(&HelloRole::Server, &role_group_ref)
             .context(FailedToResolveResourceConfigSnafu)?;
 
-        let rg_service = build_rolegroup_service(&hello, &resolved_product_image, &role_group_ref)?;
+        let rg_service = build_rolegroup_service(hello, &resolved_product_image, &role_group_ref)?;
         let rg_configmap = build_server_rolegroup_config_map(
-            &hello,
+            hello,
             &resolved_product_image,
             &role_group_ref,
             rolegroup_config,
@@ -344,7 +363,7 @@ pub async fn reconcile_hello(hello: Arc<HelloCluster>, ctx: Arc<Ctx>) -> Result<
             vector_aggregator_address.as_deref(),
         )?;
         let rg_statefulset = build_server_rolegroup_statefulset(
-            &hello,
+            hello,
             &resolved_product_image,
             &hello_role,
             &role_group_ref,
@@ -382,7 +401,7 @@ pub async fn reconcile_hello(hello: Arc<HelloCluster>, ctx: Arc<Ctx>) -> Result<
         pod_disruption_budget: pdb,
     }) = role_config
     {
-        add_pdbs(pdb, &hello, &hello_role, client, &mut cluster_resources)
+        add_pdbs(pdb, hello, &hello_role, client, &mut cluster_resources)
             .await
             .context(FailedToCreatePdbSnafu)?;
     }
@@ -391,14 +410,11 @@ pub async fn reconcile_hello(hello: Arc<HelloCluster>, ctx: Arc<Ctx>) -> Result<
         ClusterOperationsConditionBuilder::new(&hello.spec.cluster_operation);
 
     let status = HelloClusterStatus {
-        conditions: compute_conditions(
-            hello.as_ref(),
-            &[&ss_cond_builder, &cluster_operation_cond_builder],
-        ),
+        conditions: compute_conditions(hello, &[&ss_cond_builder, &cluster_operation_cond_builder]),
     };
 
     client
-        .apply_patch_status(OPERATOR_NAME, &*hello, &status)
+        .apply_patch_status(OPERATOR_NAME, hello, &status)
         .await
         .context(ApplyStatusSnafu)?;
 
@@ -807,8 +823,15 @@ fn build_server_rolegroup_statefulset(
     })
 }
 
-pub fn error_policy(_obj: Arc<HelloCluster>, _error: &Error, _ctx: Arc<Ctx>) -> Action {
-    Action::requeue(Duration::from_secs(5))
+pub fn error_policy(
+    _obj: Arc<DeserializeGuard<HelloCluster>>,
+    error: &Error,
+    _ctx: Arc<Ctx>,
+) -> Action {
+    match error {
+        Error::InvalidHelloCluster { .. } => Action::await_change(),
+        _ => Action::requeue(Duration::from_secs(5)),
+    }
 }
 
 fn service_ports() -> Vec<ServicePort> {
