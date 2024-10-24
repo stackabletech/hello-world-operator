@@ -18,10 +18,12 @@ All notable changes to this project will be documented in this file.
 ### Fixed
 
 - Add log config error handling ([#121]).
+- An invalid `HelloCluster` object doesn't stop the reconciliation anymore ([#127]).
 
 [#112]: https://github.com/stackabletech/hello-world-operator/pull/112
 [#121]: https://github.com/stackabletech/hello-world-operator/pull/121
 [#125]: https://github.com/stackabletech/hello-world-operator/pull/125
+[#127]: https://github.com/stackabletech/hello-world-operator/pull/127
 
 ## [24.7.0] - 2024-07-24
 

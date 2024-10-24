@@ -15,6 +15,7 @@ use stackable_operator::{
         apps::v1::StatefulSet,
         core::v1::{ConfigMap, Service},
     },
+    kube::core::DeserializeGuard,
     kube::runtime::{watcher, Controller},
     logging::controller::report_controller_reconciled,
     CustomResourceExt,
@@ -71,19 +72,19 @@ async fn main() -> anyhow::Result<()> {
             .await?;
 
             Controller::new(
-                watch_namespace.get_api::<HelloCluster>(&client),
+                watch_namespace.get_api::<DeserializeGuard<HelloCluster>>(&client),
                 watcher::Config::default(),
             )
             .owns(
-                watch_namespace.get_api::<Service>(&client),
+                watch_namespace.get_api::<DeserializeGuard<Service>>(&client),
                 watcher::Config::default(),
             )
             .owns(
-                watch_namespace.get_api::<StatefulSet>(&client),
+                watch_namespace.get_api::<DeserializeGuard<StatefulSet>>(&client),
                 watcher::Config::default(),
             )
             .owns(
-                watch_namespace.get_api::<ConfigMap>(&client),
+                watch_namespace.get_api::<DeserializeGuard<ConfigMap>>(&client),
                 watcher::Config::default(),
             )
             .shutdown_on_signal()
