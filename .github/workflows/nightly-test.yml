@@ -1,13 +1,21 @@
 ---
 # This is an example workflow that will then be moved to operator-templating
-name: Nightly test
+name: Integration Test
+
+# todo: run-name:
 
 on:
   workflow_dispatch:
 
 jobs:
   placeholder:
-    name: placeholder
+    name: Run integration tests
     runs-on: ubuntu-latest
     steps:
-    - run: echo hello world
+      - name: Run tests (not)
+        uses: stackabletech/actions/run-integration-test@run-integration-test
+        with:
+          test-platform: kind-1.31.0-amd64
+          test-run: test-suite
+          test-parameter: nightly
+          replicated-api-token: ${{ secrets.REPLICATED_API_TOKEN }}
