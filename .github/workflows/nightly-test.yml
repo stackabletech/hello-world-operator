@@ -16,13 +16,13 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Run Tests
-        uses: stackabletech/actions/run-integration-test@run-integration-test
-        with:
-          test-platform: kind-1.31.0-amd64
-          test-run: test-suite
-          test-parameter: nightly
-          replicated-api-token: ${{ secrets.REPLICATED_API_TOKEN }}
+      # - name: Run Tests
+      #   uses: stackabletech/actions/run-integration-test@run-integration-test
+      #   with:
+      #     test-platform: kind-1.31.0-amd64
+      #     test-run: test-suite
+      #     test-parameter: nightly
+      #     replicated-api-token: ${{ secrets.REPLICATED_API_TOKEN }}
 
       - name: Fail on Purpose
         shell: bash
@@ -43,13 +43,6 @@ jobs:
                   {
                     "pretext": "Is this needed?",
                     "color": "#aa0000",
-                    "fields": [
-                      {
-                        "title": "Needed?",
-                        "value": "Needed?",
-                        "short": true
-                      }
-                    ],
                     "actions": [
                       {
                         "type": "button",
