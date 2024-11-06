@@ -9,16 +9,46 @@ on:
 
 jobs:
   placeholder:
-    name: Run integration tests
+    name: Run Integration Tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
         with:
           submodules: recursive
-      - name: Run tests (not)
+
+      - name: Run Tests
         uses: stackabletech/actions/run-integration-test@run-integration-test
         with:
           test-platform: kind-1.31.0-amd64
           test-run: test-suite
           test-parameter: nightly
           replicated-api-token: ${{ secrets.REPLICATED_API_TOKEN }}
+
+      - name: Fail on Purpose
+        shell: bash
+        run: |
+          exit 1
+
+      - name: Send Notification
+        if: ${{ failure() }}
+        env:
+            SLACK_BOT_TOKEN: ${{ secrets.SLACK_INTEGRATION_TEST_TOKEN }}
+        uses: slackapi/slack-github-action@37ebaef184d7626c5f204ab8d3baff4262dd30f0 # v1.27.0
+        with:
+          channel-id: "C07UYKAEE02" # notifications-integration-tests-test
+          payload: |
+              {
+                "text": "Integration Test *${{ github.repository }}* failed",
+                "attachments": [
+                  {
+                    "color": "#aa0000",
+                    "actions": [
+                      {
+                        "type": "button",
+                        "text": "Go to integration test run",
+                        "url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                      }
+                    ]
+                  }
+                ]
+              }
