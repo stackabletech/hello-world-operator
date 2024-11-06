@@ -41,6 +41,7 @@ jobs:
                 "text": "Integration Test *${{ github.repository }}* failed",
                 "attachments": [
                   {
+                    "pretext": "Is this needed?",
                     "color": "#aa0000",
                     "actions": [
                       {
