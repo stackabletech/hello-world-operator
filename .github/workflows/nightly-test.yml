@@ -16,18 +16,14 @@ jobs:
         with:
           submodules: recursive
 
-      # - name: Run Tests
-      #   uses: stackabletech/actions/run-integration-test@run-integration-test
-      #   with:
-      #     test-platform: kind-1.31.0-amd64
-      #     test-run: test-suite
-      #     test-parameter: nightly
-      #     replicated-api-token: ${{ secrets.REPLICATED_API_TOKEN }}
-
-      - name: Fail on Purpose
-        shell: bash
-        run: |
-          exit 1
+      - name: Run Integration Test
+        id: test
+        uses: stackabletech/actions/run-integration-test@run-integration-test
+        with:
+          test-platform: kind-1.31.0-amd64
+          test-run: test-suite
+          test-parameter: nightly
+          replicated-api-token: ${{ secrets.REPLICATED_API_TOKEN }}
 
       - name: Send Notification
         if: ${{ failure() }}
@@ -41,7 +37,7 @@ jobs:
                 "text": "Integration Test *${{ github.repository }}* failed",
                 "attachments": [
                   {
-                    "pretext": "Is this needed?",
+                    "pretext": "Started at ${{ steps.test.outputs.start-time }}, failed at ${{ steps.test.outputs.end-time }}",
                     "color": "#aa0000",
                     "actions": [
                       {
