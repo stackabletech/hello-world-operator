@@ -43,6 +43,13 @@ jobs:
                   {
                     "pretext": "Is this needed?",
                     "color": "#aa0000",
+                    "fields": [
+                      {
+                        "title": "Needed?",
+                        "value": "Needed?",
+                        "short": true
+                      }
+                    ],
                     "actions": [
                       {
                         "type": "button",
