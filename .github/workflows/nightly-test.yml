@@ -2,7 +2,7 @@
 # This is an example workflow that will then be moved to operator-templating
 name: Integration Test
 run-name: |
-  ${{ inputs.test-run == 'all' && 'all' || format('{0}={1}', inputs.test-run, inputs.test-parameter) }}
+  Integration Test on ${{ inputs.test-platform }}-${{ inputs.test-architecture }} (${{ inputs.test-run == 'all' && 'all' || format('{0}={1}', inputs.test-run, inputs.test-parameter) }})
 
 on:
   workflow_dispatch:
