@@ -60,6 +60,9 @@ jobs:
   test:
     name: Run Integration Test
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      checks: write
     steps:
       - name: Override integration test options for scheduled run
         if: github.event_name == 'schedule'
