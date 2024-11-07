@@ -47,6 +47,10 @@ Examples:
    created if it doesn't exist and will not be deleted when the tests end.
 
     ./scripts/run-tests --test-suite smoke-latest --namespace smoke
+
+6. Run the smoke test suite and produce a JUnit test report.
+
+    ./scripts/run-tests --report xml
 """
 
 
@@ -132,6 +136,13 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument(
         "--namespace",
         help="Namespace to run the tests in. It will be created if it doesn't already exist.",
+        type=str,
+        required=False,
+    )
+
+    parser.add_argument(
+        "--report",
+        help="Produce a JUnit Test Report (xml or json)",
         type=str,
         required=False,
     )
@@ -339,7 +350,7 @@ def gen_tests(test_suite: str) -> None:
         raise TestRunnerException()
 
 
-def run_tests(test: str, parallel: int, namespace: str, skip_delete: bool) -> None:
+def run_tests(test: str, parallel: int, namespace: str, skip_delete: bool, report: str) -> None:
     try:
         kuttl_cmd = ["kubectl-kuttl", "test"]
         if test:
@@ -367,6 +378,8 @@ def run_tests(test: str, parallel: int, namespace: str, skip_delete: bool) -> No
                     logging.error(stderr)
                     logging.error("namespace creation failed")
                     raise TestRunnerException()
+        if report:
+            kuttl_cmd.extend(["--report", report])
 
         logging.debug(f"Running : {kuttl_cmd}")
 
@@ -392,7 +405,7 @@ def main(argv) -> int:
         if opts.skip_tests:
             logging.info("Skip running tests.")
         else:
-            run_tests(opts.test, opts.parallel, opts.namespace, opts.skip_delete)
+            run_tests(opts.test, opts.parallel, opts.namespace, opts.skip_delete, opts.report)
     except TestRunnerException:
         ret = 1
     return ret

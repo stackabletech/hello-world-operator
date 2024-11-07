@@ -78,7 +78,7 @@ jobs:
 
       - name: Run Integration Test
         id: test
-        uses: stackabletech/actions/run-integration-test@5b66858af3597c4ea34f9b33664b8034a1d28427 # v0.3.0
+        uses: stackabletech/actions/run-integration-test@upload-test-report # todo, update on release of the actions
         with:
           test-platform: ${{ env.TEST_PLATFORM }}-${{ env.TEST_ARCHITECTURE }}
           test-run: ${{ env.TEST_RUN }}
