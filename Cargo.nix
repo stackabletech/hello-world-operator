@@ -6669,7 +6669,7 @@ rec {
       };
       "stackable-hello-world-operator" = rec {
         crateName = "stackable-hello-world-operator";
-        version = "24.11.0";
+        version = "24.11.1-rc1";
         edition = "2021";
         crateBin = [
           {
