@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- Run a `containerdebug` process in the background of each Hello container to collect debugging information ([#144]).
+
+[#144]: https://github.com/stackabletech/hello-world-operator/pull/144
+
 ## [24.11.0] - 2024-11-18
 
 ### Added
