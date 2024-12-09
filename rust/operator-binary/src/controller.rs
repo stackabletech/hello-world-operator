@@ -631,6 +631,7 @@ fn build_server_rolegroup_statefulset(
         COMMON_BASH_TRAP_FUNCTIONS.to_string(),
         remove_vector_shutdown_file_command(STACKABLE_LOG_DIR),
         "prepare_signal_handlers".to_string(),
+        format!("CONTAINERDEBUG_LOG_DIRECTORY={STACKABLE_LOG_DIR}/containerdebug containerdebug --output={STACKABLE_LOG_DIR}/containerdebug-state.json --loop &"),
         // run process
         format!("java -Djava.security.properties={STACKABLE_CONFIG_DIR}/{JVM_SECURITY_PROPERTIES} -jar hello-world.jar &"),
         // graceful shutdown part
