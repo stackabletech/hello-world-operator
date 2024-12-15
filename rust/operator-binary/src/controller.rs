@@ -626,6 +626,12 @@ fn build_server_rolegroup_statefulset(
         }
     }
 
+    // Needed for the `containerdebug` process to log it's tracing information to.
+    container_builder.add_env_var(
+        "CONTAINERDEBUG_LOG_DIRECTORY",
+        format!("{STACKABLE_LOG_DIR}/containerdebug"),
+    );
+
     let command = [
         // graceful shutdown part
         COMMON_BASH_TRAP_FUNCTIONS.to_string(),
