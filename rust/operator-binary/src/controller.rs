@@ -639,7 +639,8 @@ fn build_server_rolegroup_statefulset(
         "prepare_signal_handlers".to_string(),
         format!("containerdebug --output={STACKABLE_LOG_DIR}/containerdebug-state.json --loop &"),
         // run process
-        format!("java -Djava.security.properties={STACKABLE_CONFIG_DIR}/{JVM_SECURITY_PROPERTIES} -jar hello-world.jar &"),
+        // hard-coded memory limit to work around #147, TODO: migrate to our JVM resource handling framework
+        format!("java -Djava.security.properties={STACKABLE_CONFIG_DIR}/{JVM_SECURITY_PROPERTIES} -Xmx100M -jar hello-world.jar &"),
         // graceful shutdown part
         "wait_for_termination $!".to_string(),
         create_vector_shutdown_file_command(STACKABLE_LOG_DIR),
