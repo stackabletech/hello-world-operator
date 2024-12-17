@@ -1,0 +1,8 @@
+---
+# This test checks if the containerdebug-state.json file is present and valid
+apiVersion: kuttl.dev/v1beta1
+kind: TestAssert
+timeout: 60
+commands:
+  # Verify that the state is syntactically valid JSON, but no need to actually print out the full JSON every time
+  - script: kubectl exec -n $NAMESPACE hello-world-server-default-0 -- cat /stackable/log/containerdebug-state.json | jq --exit-status '"valid JSON"'
