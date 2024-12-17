@@ -410,18 +410,18 @@ dependencies = [
 
 [[package]]
 name = "crossbeam-channel"
-version = "0.5.13"
+version = "0.5.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "33480d6946193aa8033910124896ca395333cae7e2d1113d1fef6c3272217df2"
+checksum = "06ba6d68e24814cb8de6bb986db8222d3a027d15872cabc0d18817bc3c0e4471"
 dependencies = [
  "crossbeam-utils",
 ]
 
 [[package]]
 name = "crossbeam-utils"
-version = "0.8.20"
+version = "0.8.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "22ec99545bb0ed0ea7bb9b8e1e9122ea386ff8a48c0922e43f36d45ab09e0e80"
+checksum = "d0a5c400df2834b80a4c3327b3aad3a4c4cd4de0629063962b03235697506a28"
 
 [[package]]
 name = "crypto-common"
@@ -486,17 +486,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b42b6fa04a440b495c8b04d0e71b707c585f83cb9cb28cf8cd0d976c315e31b4"
 dependencies = [
  "powerfmt",
-]
-
-[[package]]
-name = "derivative"
-version = "2.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fcc3dd5e9e9c0b295d6e1e4d811fb6f157d5ffd784b8d202fc62eac8035a770b"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 1.0.109",
 ]
 
 [[package]]
@@ -866,11 +855,11 @@ checksum = "d231dfb89cfffdbc30e7fc41579ed6066ad03abda9e567ccafae602b97ec5024"
 
 [[package]]
 name = "home"
-version = "0.5.9"
+version = "0.5.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e3d1354bf6b7235cb4a0576c2619fd4ed18183f689b12b006a0ee7329eeff9a5"
+checksum = "589533453244b0995c858700322199b2becb13b627df2851f64a2775d024abcf"
 dependencies = [
- "windows-sys 0.52.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -921,9 +910,9 @@ checksum = "df3b46402a9d5adb4c86a0cf463f42e19994e3ee891101b1841f30a545cb49a9"
 
 [[package]]
 name = "hyper"
-version = "1.5.1"
+version = "1.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "97818827ef4f364230e16705d4706e2897df2bb60617d6ca15d598025a3c481f"
+checksum = "256fb8d4bd6413123cc9d91832d78325c48ff41677595be797d90f42969beae0"
 dependencies = [
  "bytes",
  "futures-channel",
@@ -1487,9 +1476,9 @@ checksum = "6877bb514081ee2a7ff5ef9de3281f14a4dd4bceac4c09388074a6b5df8a139a"
 
 [[package]]
 name = "miniz_oxide"
-version = "0.8.0"
+version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e2d80299ef12ff69b16a84bb182e3b9df68b5a91574d3d4fa6e41b65deec4df1"
+checksum = "a2ef2593ffb6958c941575cee70c8e257438749971869c4ae5acf6f91a168a61"
 dependencies = [
  "adler2",
 ]
@@ -2363,15 +2352,15 @@ dependencies = [
 
 [[package]]
 name = "stackable-operator"
-version = "0.80.0"
-source = "git+https://github.com/stackabletech/operator-rs.git?tag=stackable-operator-0.80.0#6fbe32300b60f95e0baa2ab0ff2daf961b06531c"
+version = "0.83.0"
+source = "git+https://github.com/stackabletech/operator-rs.git?tag=stackable-operator-0.83.0#3ce7bcbdb58097cde0c0f19488a104c96f69dbc3"
 dependencies = [
  "chrono",
  "clap",
  "const_format",
  "delegate",
- "derivative",
  "dockerfile-parser",
+ "educe",
  "either",
  "futures 0.3.31",
  "indexmap",
@@ -2402,7 +2391,7 @@ dependencies = [
 [[package]]
 name = "stackable-operator-derive"
 version = "0.3.1"
-source = "git+https://github.com/stackabletech/operator-rs.git?tag=stackable-operator-0.80.0#6fbe32300b60f95e0baa2ab0ff2daf961b06531c"
+source = "git+https://github.com/stackabletech/operator-rs.git?tag=stackable-operator-0.83.0#3ce7bcbdb58097cde0c0f19488a104c96f69dbc3"
 dependencies = [
  "darling",
  "proc-macro2",
@@ -2413,7 +2402,7 @@ dependencies = [
 [[package]]
 name = "stackable-shared"
 version = "0.0.1"
-source = "git+https://github.com/stackabletech/operator-rs.git?tag=stackable-operator-0.80.0#6fbe32300b60f95e0baa2ab0ff2daf961b06531c"
+source = "git+https://github.com/stackabletech/operator-rs.git?tag=stackable-operator-0.83.0#3ce7bcbdb58097cde0c0f19488a104c96f69dbc3"
 dependencies = [
  "kube",
  "semver",
