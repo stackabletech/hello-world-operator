@@ -39,7 +39,7 @@ reachable at localhost:8080
 
 This operator is written and maintained by [Stackable](https://stackable.tech) and it is part of a larger data platform.
 
-![Stackable Data Platform Overview](./.readme/static/borrowed/sdp_overview.png)
+![Stackable Data Platform Overview](./.readme/static/borrowed/stackable_overview.png)
 
 Stackable makes it easy to operate data applications in any Kubernetes cluster.
 
