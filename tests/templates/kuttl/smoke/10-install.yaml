@@ -5,7 +5,7 @@ metadata:
   name: hello-world
 spec:
   image:
-    custom: docker.stackable.tech/stackable/hello-world:0.0.1-SNAPSHOT-stackable0.0.0-dev
+    custom: oci.stackable.tech/sdp/hello-world:0.0.1-SNAPSHOT-stackable0.0.0-dev
     productVersion: 0.0.1
     pullPolicy: IfNotPresent
   recipient: "Stackable"
