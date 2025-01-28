@@ -4,11 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
-### Added
+## [24.11.1] - 2025-01-10
 
-- Run a `containerdebug` process in the background of each Hello container to collect debugging information ([#144]).
+## [24.11.1-rc2] - 2024-12-12
 
-[#144]: https://github.com/stackabletech/hello-world-operator/pull/144
+## [24.11.1-rc1] - 2024-12-06
 
 ## [24.11.0] - 2024-11-18
 
