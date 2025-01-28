@@ -10,6 +10,8 @@ All notable changes to this project will be documented in this file.
 
 [#144]: https://github.com/stackabletech/hello-world-operator/pull/144
 
+## [24.11.1] - 2025-01-10
+
 ## [24.11.0] - 2024-11-18
 
 ### Added
