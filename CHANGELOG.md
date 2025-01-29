@@ -8,7 +8,12 @@ All notable changes to this project will be documented in this file.
 
 - Run a `containerdebug` process in the background of each Hello container to collect debugging information ([#144]).
 
+### Changed
+
+- Default to OCI for image metadata ([#151]).
+
 [#144]: https://github.com/stackabletech/hello-world-operator/pull/144
+[#151]: https://github.com/stackabletech/hello-world-operator/pull/151
 
 ## [24.11.1] - 2025-01-10
 

@@ -25,7 +25,9 @@ use stackable_operator::{
     kube::{runtime::reflector::ObjectRef, CustomResource, ResourceExt},
     product_config_utils::{self, Configuration},
     product_logging::{self, spec::Logging},
-    role_utils::{GenericRoleConfig, Role, RoleGroup, RoleGroupRef},
+    role_utils::{
+        GenericProductSpecificCommonConfig, GenericRoleConfig, Role, RoleGroup, RoleGroupRef,
+    },
     schemars::{self, JsonSchema},
     status::condition::{ClusterCondition, HasStatusCondition},
     time::Duration,
@@ -380,7 +382,7 @@ impl HelloCluster {
     pub fn role_group(
         &self,
         rolegroup_ref: &RoleGroupRef<HelloCluster>,
-    ) -> Result<RoleGroup<HelloConfigFragment>, Error> {
+    ) -> Result<RoleGroup<HelloConfigFragment, GenericProductSpecificCommonConfig>, Error> {
         let role_variant =
             HelloRole::from_str(&rolegroup_ref.role).with_context(|_| UnknownHelloRoleSnafu {
                 role: rolegroup_ref.role.to_owned(),

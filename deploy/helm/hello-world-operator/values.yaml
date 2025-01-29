@@ -1,7 +1,7 @@
 # Default values for hello-world-operator.
 ---
 image:
-  repository: docker.stackable.tech/stackable/hello-world-operator
+  repository: oci.stackable.tech/sdp/hello-world-operator
   pullPolicy: IfNotPresent
   pullSecrets: []
 

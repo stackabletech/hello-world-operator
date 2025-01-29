@@ -6,6 +6,7 @@ use std::{
     time::Duration,
 };
 
+use const_format::concatcp;
 use product_config::{
     self, types::PropertyNameKind, writer::to_java_properties_string, ProductConfigManager,
 };
@@ -70,6 +71,7 @@ use crate::product_logging::{extend_role_group_config_map, resolve_vector_aggreg
 use crate::OPERATOR_NAME;
 
 pub const HELLO_CONTROLLER_NAME: &str = "hellocluster";
+pub const HELLO_FULL_CONTROLLER_NAME: &str = concatcp!(HELLO_CONTROLLER_NAME, '.', OPERATOR_NAME);
 const DOCKER_IMAGE_BASE_NAME: &str = "hello";
 
 pub const MAX_LOG_FILES_SIZE: MemoryQuantity = MemoryQuantity {
